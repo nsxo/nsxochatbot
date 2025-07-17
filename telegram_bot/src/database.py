@@ -886,3 +886,121 @@ def broadcast_message_to_all_users(message: str, exclude_banned: bool = True) ->
     except Exception as e:
         logger.error(f"Error in broadcast: {e}")
         return {'total_users': 0, 'sent': 0, 'failed': 0}
+
+def get_all_conversations_with_details(limit: int = 20) -> List[Dict[str, Any]]:
+    """Get conversations with user details and message counts."""
+    try:
+        query = """
+        SELECT 
+            c.user_id,
+            u.username,
+            u.first_name,
+            u.message_credits,
+            u.is_banned,
+            c.last_message_at,
+            COUNT(CASE WHEN c.status = 'unread' THEN 1 END) as unread_count,
+            COUNT(*) as total_messages,
+            c.notes
+        FROM conversations c
+        LEFT JOIN users u ON c.user_id = u.telegram_id
+        WHERE c.status = 'active'
+        GROUP BY c.user_id, u.username, u.first_name, u.message_credits, u.is_banned, c.last_message_at, c.notes
+        ORDER BY c.last_message_at DESC
+        LIMIT %s
+        """ if db_manager._db_type == 'postgresql' else """
+        SELECT 
+            c.user_id,
+            u.username,
+            u.first_name,
+            u.message_credits,
+            u.is_banned,
+            c.last_message_at,
+            COUNT(CASE WHEN c.status = 'unread' THEN 1 END) as unread_count,
+            COUNT(*) as total_messages,
+            c.notes
+        FROM conversations c
+        LEFT JOIN users u ON c.user_id = u.telegram_id
+        WHERE c.status = 'active'
+        GROUP BY c.user_id, u.username, u.first_name, u.message_credits, u.is_banned, c.last_message_at, c.notes
+        ORDER BY c.last_message_at DESC
+        LIMIT ?
+        """
+        
+        conversations = db_manager.execute_query(query, (limit,), fetch_all=True)
+        
+        # Add formatted time_ago and mock last_message for now
+        for conv in conversations:
+            conv['time_ago'] = '5m ago'  # Placeholder
+            conv['last_message'] = 'Last message preview...'  # Placeholder
+            conv['unread_count'] = conv.get('unread_count', 0)
+        
+        return conversations
+        
+    except Exception as e:
+        logger.error(f"Error getting conversations with details: {e}")
+        return []
+
+async def get_enhanced_dashboard_stats() -> Dict[str, Any]:
+    """Get enhanced dashboard statistics."""
+    try:
+        base_stats = get_user_stats()
+        
+        # Get additional enhanced stats
+        total_credits = db_manager.execute_query(
+            "SELECT COALESCE(SUM(message_credits), 0) FROM users",
+            fetch_one=True
+        )[0] if db_manager.execute_query("SELECT COALESCE(SUM(message_credits), 0) FROM users", fetch_one=True) else 0
+        
+        total_time_hours = db_manager.execute_query(
+            "SELECT COALESCE(SUM(time_credits_seconds), 0) / 3600 FROM users",
+            fetch_one=True
+        )[0] if db_manager.execute_query("SELECT COALESCE(SUM(time_credits_seconds), 0) / 3600 FROM users", fetch_one=True) else 0
+        
+        week_users = get_week_new_users()
+        
+        enhanced_stats = {
+            **base_stats,
+            'active_users': base_stats.get('total_users', 0) - base_stats.get('banned_users', 0),
+            'total_credits': int(total_credits),
+            'total_time_hours': int(total_time_hours),
+            'today_users': get_today_new_users(),
+            'week_users': week_users,
+            'active_conversations': get_active_conversations_count(),
+            'unread_messages': get_unread_messages_count(),
+            'vip_users': len(get_vip_users_list(100))
+        }
+        
+        return enhanced_stats
+        
+    except Exception as e:
+        logger.error(f"Error getting enhanced dashboard stats: {e}")
+        return {
+            'total_users': 0,
+            'banned_users': 0,
+            'active_users': 0,
+            'total_credits': 0,
+            'total_time_hours': 0,
+            'today_users': 0,
+            'week_users': 0,
+            'active_conversations': 0,
+            'unread_messages': 0,
+            'vip_users': 0
+        }
+
+def get_week_new_users() -> int:
+    """Get count of new users this week."""
+    try:
+        query = """
+        SELECT COUNT(*) 
+        FROM users 
+        WHERE created_at >= NOW() - INTERVAL '7 days'
+        """ if db_manager._db_type == 'postgresql' else """
+        SELECT COUNT(*) 
+        FROM users 
+        WHERE created_at >= datetime('now', '-7 days')
+        """
+        result = db_manager.execute_query(query, fetch_one=True)
+        return result[0] if result else 0
+    except Exception as e:
+        logger.error(f"Error getting week new users: {e}")
+        return 0

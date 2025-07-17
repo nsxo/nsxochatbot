@@ -22,6 +22,7 @@ from telegram.request import HTTPXRequest
 from src.config import settings
 from src.error_handler import error_handler
 from src.handlers import user_commands, admin_commands, message_handlers
+from src import enhanced_admin_ui
 
 # Configure logging
 logging.basicConfig(
@@ -29,6 +30,7 @@ logging.basicConfig(
     level=settings.LOG_LEVEL.upper()
 )
 logger = logging.getLogger(__name__)
+
 
 class HealthCheckHandler(BaseHandler):
     """A custom handler for the /health endpoint."""
@@ -54,14 +56,26 @@ async def main() -> None:
     # Set up the application
     application = Application.builder().token(settings.BOT_TOKEN).build()
 
-    # Register all handlers
+    # Register basic user commands
     application.add_handler(CommandHandler("start", user_commands.start))
     application.add_handler(CommandHandler("balance", user_commands.balance_command))
     application.add_handler(CommandHandler("help", user_commands.help_command))
     application.add_handler(CommandHandler("buy", user_commands.buy_command))
     application.add_handler(CallbackQueryHandler(user_commands.button_handler))
+    
+    # Register enhanced admin commands
+    for handler in enhanced_admin_ui.get_enhanced_admin_commands():
+        application.add_handler(handler)
+    
+    # Register enhanced user commands
+    for handler in enhanced_admin_ui.get_enhanced_user_commands():
+        application.add_handler(handler)
+    
+    # Register conversation handlers
     application.add_handler(admin_commands.get_admin_conversation_handler())
     application.add_handler(admin_commands.get_locked_content_handler())
+    
+    # Register message handler
     application.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, message_handlers.master_message_handler))
     application.add_error_handler(error_handler)
     
