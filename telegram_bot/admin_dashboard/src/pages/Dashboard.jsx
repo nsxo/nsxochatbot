@@ -1,17 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import {
-  UsersIcon,
-  CurrencyDollarIcon,
-  ChatBubbleLeftRightIcon,
-  CogIcon,
-  ArrowUpIcon,
-  ArrowDownIcon,
-} from '@heroicons/react/24/outline'
 import { api } from '../services/api'
 
-const StatCard = ({ title, value, icon: Icon, trend, trendValue, color = 'blue' }) => {
+const StatCard = ({ title, value, trend, trendValue, icon, color = 'blue' }) => {
   const colorClasses = {
     blue: 'text-blue-600 bg-blue-100',
     green: 'text-green-600 bg-green-100',
@@ -20,15 +11,11 @@ const StatCard = ({ title, value, icon: Icon, trend, trendValue, color = 'blue' 
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="card p-6"
-    >
+    <div className="card p-6 animate-slide-up">
       <div className="flex items-center">
         <div className="flex-shrink-0">
           <div className={`p-3 rounded-lg ${colorClasses[color]}`}>
-            <Icon className="h-6 w-6" />
+            <span className="text-2xl">{icon}</span>
           </div>
         </div>
         <div className="ml-5 w-0 flex-1">
@@ -40,11 +27,7 @@ const StatCard = ({ title, value, icon: Icon, trend, trendValue, color = 'blue' 
                 <div className={`ml-2 flex items-baseline text-sm font-semibold ${
                   trend === 'up' ? 'text-green-600' : 'text-red-600'
                 }`}>
-                  {trend === 'up' ? (
-                    <ArrowUpIcon className="self-center flex-shrink-0 h-5 w-5" />
-                  ) : (
-                    <ArrowDownIcon className="self-center flex-shrink-0 h-5 w-5" />
-                  )}
+                  <span className="text-lg">{trend === 'up' ? '↗️' : '↘️'}</span>
                   <span className="sr-only">{trend === 'up' ? 'Increased' : 'Decreased'} by</span>
                   {trendValue}
                 </div>
@@ -53,11 +36,11 @@ const StatCard = ({ title, value, icon: Icon, trend, trendValue, color = 'blue' 
           </dl>
         </div>
       </div>
-    </motion.div>
+    </div>
   )
 }
 
-const QuickAction = ({ title, description, icon: Icon, to, color = 'blue' }) => {
+const QuickAction = ({ title, description, icon, to, color = 'blue' }) => {
   const colorClasses = {
     blue: 'text-blue-600 bg-blue-100 hover:bg-blue-200',
     green: 'text-green-600 bg-green-100 hover:bg-green-200',
@@ -67,22 +50,17 @@ const QuickAction = ({ title, description, icon: Icon, to, color = 'blue' }) => 
 
   return (
     <Link to={to} className="block">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        whileHover={{ scale: 1.05 }}
-        className="card p-6 hover:shadow-lg transition-all duration-200"
-      >
+      <div className="card p-6 hover:shadow-lg transition-all duration-200 hover:scale-105">
         <div className="flex items-center">
           <div className={`p-3 rounded-lg ${colorClasses[color]} transition-colors`}>
-            <Icon className="h-6 w-6" />
+            <span className="text-2xl">{icon}</span>
           </div>
           <div className="ml-4">
             <h3 className="text-lg font-medium text-gray-900">{title}</h3>
             <p className="text-sm text-gray-500">{description}</p>
           </div>
         </div>
-      </motion.div>
+      </div>
     </Link>
   )
 }
@@ -142,7 +120,7 @@ export default function Dashboard() {
         <StatCard
           title="Total Users"
           value={stats.total_users?.toLocaleString() || '0'}
-          icon={UsersIcon}
+          icon="👥"
           trend={stats.trends?.users?.direction}
           trendValue={stats.trends?.users?.value}
           color="blue"
@@ -151,7 +129,7 @@ export default function Dashboard() {
         <StatCard
           title="Active Users"
           value={stats.active_users?.toLocaleString() || '0'}
-          icon={UsersIcon}
+          icon="🟢"
           trend={stats.trends?.active?.direction}
           trendValue={stats.trends?.active?.value}
           color="green"
@@ -160,7 +138,7 @@ export default function Dashboard() {
         <StatCard
           title="Total Messages"
           value={stats.total_messages?.toLocaleString() || '0'}
-          icon={ChatBubbleLeftRightIcon}
+          icon="💬"
           trend={stats.trends?.messages?.direction}
           trendValue={stats.trends?.messages?.value}
           color="purple"
@@ -169,7 +147,7 @@ export default function Dashboard() {
         <StatCard
           title="Revenue ($)"
           value={`$${(stats.total_revenue || 0).toLocaleString()}`}
-          icon={CurrencyDollarIcon}
+          icon="💰"
           trend={stats.trends?.revenue?.direction}
           trendValue={stats.trends?.revenue?.value}
           color="orange"
@@ -183,7 +161,7 @@ export default function Dashboard() {
           <QuickAction
             title="Bot Settings"
             description="Update welcome messages, pricing, and automated responses"
-            icon={CogIcon}
+            icon="⚙️"
             to="/settings"
             color="blue"
           />
@@ -191,7 +169,7 @@ export default function Dashboard() {
           <QuickAction
             title="Manage Products"
             description="Create, edit, and manage credit packages and pricing"
-            icon={CurrencyDollarIcon}
+            icon="🛒"
             to="/products"
             color="green"
           />
@@ -199,7 +177,7 @@ export default function Dashboard() {
           <QuickAction
             title="View Messages"
             description="Monitor conversations and manage automated messages"
-            icon={ChatBubbleLeftRightIcon}
+            icon="💬"
             to="/messages"
             color="purple"
           />
@@ -207,7 +185,7 @@ export default function Dashboard() {
           <QuickAction
             title="User Management"
             description="View user analytics and manage user accounts"
-            icon={UsersIcon}
+            icon="👥"
             to="/users"
             color="orange"
           />
@@ -230,7 +208,7 @@ export default function Dashboard() {
             ))
           ) : (
             <div className="text-center py-8">
-              <ChatBubbleLeftRightIcon className="mx-auto h-12 w-12 text-gray-400" />
+              <span className="text-6xl mb-4 block">💬</span>
               <h3 className="mt-2 text-sm font-medium text-gray-900">No recent activity</h3>
               <p className="mt-1 text-sm text-gray-500">Activity will appear here as users interact with your bot.</p>
             </div>

@@ -1,25 +1,13 @@
 import React, { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import {
-  HomeIcon,
-  CogIcon,
-  ShoppingBagIcon,
-  ChatBubbleLeftRightIcon,
-  UsersIcon,
-  ChartBarIcon,
-  Bars3Icon,
-  XMarkIcon,
-  BellIcon,
-} from '@heroicons/react/24/outline'
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: HomeIcon },
-  { name: 'Settings', href: '/settings', icon: CogIcon },
-  { name: 'Products', href: '/products', icon: ShoppingBagIcon },
-  { name: 'Messages', href: '/messages', icon: ChatBubbleLeftRightIcon },
-  { name: 'Users', href: '/users', icon: UsersIcon },
-  { name: 'Analytics', href: '/analytics', icon: ChartBarIcon },
+  { name: 'Dashboard', href: '/', icon: '🏠' },
+  { name: 'Settings', href: '/settings', icon: '⚙️' },
+  { name: 'Products', href: '/products', icon: '🛒' },
+  { name: 'Messages', href: '/messages', icon: '💬' },
+  { name: 'Users', href: '/users', icon: '👥' },
+  { name: 'Analytics', href: '/analytics', icon: '📊' },
 ]
 
 function classNames(...classes) {
@@ -47,7 +35,7 @@ export default function Layout({ children }) {
                 onClick={() => setSidebarOpen(false)}
               >
                 <span className="sr-only">Close sidebar</span>
-                <XMarkIcon className="h-6 w-6 text-white" aria-hidden="true" />
+                <span className="h-6 w-6 text-white text-xl">✕</span>
               </button>
             </div>
             
@@ -76,13 +64,7 @@ export default function Layout({ children }) {
                             )}
                             onClick={() => setSidebarOpen(false)}
                           >
-                            <item.icon
-                              className={classNames(
-                                location.pathname === item.href ? 'text-primary-600' : 'text-gray-400 group-hover:text-primary-600',
-                                'h-6 w-6 shrink-0'
-                              )}
-                              aria-hidden="true"
-                            />
+                            <span className="h-6 w-6 text-lg">{item.icon}</span>
                             {item.name}
                           </Link>
                         </li>
@@ -125,13 +107,7 @@ export default function Layout({ children }) {
                           'group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold'
                         )}
                       >
-                        <item.icon
-                          className={classNames(
-                            location.pathname === item.href ? 'text-primary-600' : 'text-gray-400 group-hover:text-primary-600',
-                            'h-6 w-6 shrink-0'
-                          )}
-                          aria-hidden="true"
-                        />
+                        <span className="h-6 w-6 text-lg">{item.icon}</span>
                         {item.name}
                       </Link>
                     </li>
@@ -152,7 +128,7 @@ export default function Layout({ children }) {
             onClick={() => setSidebarOpen(true)}
           >
             <span className="sr-only">Open sidebar</span>
-            <Bars3Icon className="h-6 w-6" aria-hidden="true" />
+            <span className="h-6 w-6 text-xl">☰</span>
           </button>
 
           {/* Separator */}
@@ -170,7 +146,7 @@ export default function Layout({ children }) {
                 className="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500"
               >
                 <span className="sr-only">View notifications</span>
-                <BellIcon className="h-6 w-6" aria-hidden="true" />
+                <span className="h-6 w-6 text-lg">🔔</span>
               </button>
 
               {/* Profile dropdown would go here */}
@@ -186,13 +162,9 @@ export default function Layout({ children }) {
 
         <main className="py-10">
           <div className="px-4 sm:px-6 lg:px-8">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-            >
+            <div className="animate-fade-in">
               {children}
-            </motion.div>
+            </div>
           </div>
         </main>
       </div>

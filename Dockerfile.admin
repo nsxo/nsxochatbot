@@ -1,40 +1,37 @@
-# Multi-stage build for admin dashboard + bot
-FROM node:18-alpine as frontend-builder
+# Single-stage build for admin dashboard
+FROM node:18-alpine
 
-# Build frontend
-WORKDIR /app/admin_dashboard
-COPY telegram_bot/admin_dashboard/package*.json ./
-RUN npm install
-
-COPY telegram_bot/admin_dashboard/ ./
-RUN npm run build
-
-# Python runtime stage
-FROM python:3.10-slim
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
+# Install Python and build dependencies
+RUN apk add --no-cache python3 py3-pip gcc musl-dev python3-dev
 
 # Set working directory
 WORKDIR /app
 
-# Copy Python requirements and install
+# Copy package files first (for better caching)
+COPY telegram_bot/admin_dashboard/package*.json ./admin_dashboard/
 COPY telegram_bot/requirements.txt ./telegram_bot/
 COPY telegram_bot/admin_dashboard/requirements.txt ./telegram_bot/admin_dashboard/
 
-RUN pip install --no-cache-dir -r telegram_bot/requirements.txt
-RUN pip install --no-cache-dir -r telegram_bot/admin_dashboard/requirements.txt
+# Install Node.js dependencies
+WORKDIR /app/admin_dashboard
+RUN npm ci --only=production
+
+# Copy admin dashboard source
+COPY telegram_bot/admin_dashboard/ ./
+
+# Build frontend with increased memory limit
+RUN NODE_OPTIONS="--max-old-space-size=4096" npm run build
+
+# Install Python dependencies
+WORKDIR /app
+RUN pip3 install --no-cache-dir -r telegram_bot/requirements.txt
+RUN pip3 install --no-cache-dir -r telegram_bot/admin_dashboard/requirements.txt
 
 # Copy application code
 COPY telegram_bot/ ./telegram_bot/
 
-# Copy built frontend from previous stage
-COPY --from=frontend-builder /app/admin_dashboard/dist ./telegram_bot/admin_dashboard/dist
-
 # Create non-root user
-RUN useradd --create-home --shell /bin/bash app
+RUN addgroup -g 1001 -S app && adduser -S app -u 1001 -G app
 RUN chown -R app:app /app
 USER app
 
@@ -46,4 +43,4 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/api/health || exit 1
 
 # Start command
-CMD ["python", "telegram_bot/admin_dashboard/start_server.py"] 
+CMD ["python3", "telegram_bot/admin_dashboard/start_server.py"] 
