@@ -994,7 +994,7 @@ def get_admin_conversation_handler() -> ConversationHandler:
                 CallbackQueryHandler(lambda u, c: set_admin_status(u, c, 'offline', 'Not available'), pattern='^status_offline$'),
                 CallbackQueryHandler(back_to_main_menu, pattern='^back_to_main$'),
             ],
-            LOCKED_CONTENT_UPLOAD: [MessageHandler(filters.PHOTO | filters.VIDEO | filters.DOCUMENT, locked_content_upload_handler)],
+            LOCKED_CONTENT_UPLOAD: [MessageHandler(filters.PHOTO | filters.VIDEO | filters.Document.ALL, locked_content_upload_handler)],
             LOCKED_CONTENT_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, locked_content_price_handler)],
             LOCKED_CONTENT_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, locked_content_description_handler)],
             LOCKED_CONTENT_CONFIRM: [CallbackQueryHandler(locked_content_confirm_handler)],
@@ -1018,7 +1018,7 @@ def get_locked_content_handler() -> ConversationHandler:
     return ConversationHandler(
         entry_points=[CommandHandler("lock", lock_content_start)],
         states={
-            LOCKED_CONTENT_UPLOAD: [MessageHandler(filters.PHOTO | filters.VIDEO | filters.DOCUMENT, locked_content_upload_handler)],
+            LOCKED_CONTENT_UPLOAD: [MessageHandler(filters.PHOTO | filters.VIDEO | filters.Document.ALL, locked_content_upload_handler)],
             LOCKED_CONTENT_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, locked_content_price_handler)],
             LOCKED_CONTENT_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, locked_content_description_handler)],
             LOCKED_CONTENT_CONFIRM: [CallbackQueryHandler(locked_content_confirm_handler)],

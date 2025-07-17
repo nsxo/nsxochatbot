@@ -162,8 +162,7 @@ class DatabaseManager:
             
             # Initialize default data after schema creation
             try:
-                from src.schema import ensure_default_data
-                ensure_default_data()
+                initialize_default_data()
             except Exception as e:
                 logger.warning(f"Failed to initialize default data: {e}")
 
@@ -1555,3 +1554,44 @@ def get_user_stats_individual(user_id: int) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error getting user stats: {e}")
         return {'total_messages': 0, 'member_since': None, 'current_credits': 0}
+
+def initialize_default_data():
+    """Initialize database with default settings and products."""
+    try:
+        from src.schema import get_default_settings, get_default_products
+        
+        # Insert default settings
+        for key, value in get_default_settings():
+            query = """
+                INSERT INTO bot_settings (setting_key, setting_value) 
+                VALUES (%s, %s) 
+                ON CONFLICT (setting_key) DO NOTHING
+            """ if db_manager._db_type == 'postgresql' else """
+                INSERT OR IGNORE INTO bot_settings (setting_key, setting_value) 
+                VALUES (?, ?)
+            """
+            db_manager.execute_query(query, (key, value))
+        
+        # Insert default products
+        for product in get_default_products():
+            query = """
+                INSERT INTO products (stripe_product_id, stripe_price_id, label, amount, item_type, description, is_active) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s) 
+                ON CONFLICT DO NOTHING
+            """ if db_manager._db_type == 'postgresql' else """
+                INSERT OR IGNORE INTO products (stripe_product_id, stripe_price_id, label, amount, item_type, description, is_active) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """
+            db_manager.execute_query(query, product)
+            
+        logger.info("✅ Default data initialized successfully")
+        
+    except Exception as e:
+        logger.error(f"Error initializing default data: {e}")
+
+def ensure_default_data():
+    """Ensure default data exists in the database."""
+    try:
+        initialize_default_data()
+    except Exception as e:
+        logger.error(f"Failed to ensure default data: {e}")

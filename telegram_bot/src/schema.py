@@ -153,44 +153,13 @@ def get_default_products() -> List[Tuple]:
 
 def initialize_default_data():
     """Initialize database with default settings and products."""
-    try:
-        # Import here to avoid circular imports
-        from src.database import db_manager
-        
-        # Insert default settings
-        for key, value in get_default_settings():
-            query = """
-                INSERT INTO bot_settings (setting_key, setting_value) 
-                VALUES (%s, %s) 
-                ON CONFLICT (setting_key) DO NOTHING
-            """ if db_manager._db_type == 'postgresql' else """
-                INSERT OR IGNORE INTO bot_settings (setting_key, setting_value) 
-                VALUES (?, ?)
-            """
-            db_manager.execute_query(query, (key, value))
-        
-        # Insert default products
-        for product in get_default_products():
-            query = """
-                INSERT INTO products (stripe_product_id, stripe_price_id, label, amount, item_type, description, is_active) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s) 
-                ON CONFLICT DO NOTHING
-            """ if db_manager._db_type == 'postgresql' else """
-                INSERT OR IGNORE INTO products (stripe_product_id, stripe_price_id, label, amount, item_type, description, is_active) 
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """
-            db_manager.execute_query(query, product)
-            
-        logger.info("✅ Default data initialized successfully")
-        
-    except Exception as e:
-        logger.error(f"Error initializing default data: {e}")
+    # This function is now moved to database.py to avoid circular imports
+    # It will be called from there when needed
+    pass
 
 def ensure_default_data():
     """Ensure default data exists in the database."""
-    try:
-        initialize_default_data()
-    except Exception as e:
-        logger.error(f"Failed to ensure default data: {e}")
+    # This function is now moved to database.py to avoid circular imports
+    pass
 
-# Add this call to the DatabaseManager initialization
+# Remove the automatic call - it will be handled in database.py
