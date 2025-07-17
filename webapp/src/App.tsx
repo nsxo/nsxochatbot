@@ -311,131 +311,233 @@ const ProductsPage = () => (
   </div>
 );
 
-// Users Page - Enhanced for better management
+// Users Page - Railway-Inspired Design
 const UsersPage = () => (
   <div>
-    <div className="flex justify-between items-center mb-lg">
-      <div>
-        <h2 style={{ color: 'var(--text-primary)' }}>User Management</h2>
-        <p className="text-secondary">Monitor and manage your bot users</p>
-      </div>
-      <div className="flex gap-sm">
-        <button className="btn btn-secondary">🔍 Search Users</button>
-        <button className="btn btn-secondary">📊 Export Data</button>
-        <button className="btn btn-secondary">👥 User Analytics</button>
-      </div>
-    </div>
-
-    {/* User Stats Cards */}
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--spacing-lg)', marginBottom: 'var(--spacing-xl)' }}>
-      <div className="stat-card">
-        <div className="stat-header">
-          <div className="stat-title">Active Users</div>
-          <div className="stat-icon">👥</div>
+    {/* Railway-style header */}
+    <div style={{ marginBottom: 'var(--spacing-lg)' }}>
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 style={{ color: 'var(--text-primary)', fontSize: '1.5rem', margin: '0 0 4px 0' }}>User Management</h2>
+          <div className="flex items-center gap-md text-secondary" style={{ fontSize: '0.875rem' }}>
+            <span>🌐 nsxochatbot-production.railway.app</span>
+            <span>🌍 us-west2</span>
+            <span>1 Replica</span>
+          </div>
         </div>
-        <div className="stat-value">128</div>
-        <div className="stat-change positive">
-          <span>↗️</span>
-          <span>+15%</span>
-          <span className="text-secondary">vs last week</span>
-        </div>
-      </div>
-      
-      <div className="stat-card">
-        <div className="stat-header">
-          <div className="stat-title">New Users</div>
-          <div className="stat-icon">🆕</div>
-        </div>
-        <div className="stat-value">23</div>
-        <div className="stat-change positive">
-          <span>↗️</span>
-          <span>+8%</span>
-          <span className="text-secondary">this week</span>
-        </div>
-      </div>
-      
-      <div className="stat-card">
-        <div className="stat-header">
-          <div className="stat-title">Total Credits</div>
-          <div className="stat-icon">💎</div>
-        </div>
-        <div className="stat-value">45.2k</div>
-        <div className="stat-change negative">
-          <span>↘️</span>
-          <span>-12%</span>
-          <span className="text-secondary">consumed</span>
+        <div className="flex gap-sm">
+          <button className="btn btn-secondary btn-sm">View logs</button>
+          <button className="btn btn-secondary btn-sm">⚙️</button>
         </div>
       </div>
     </div>
 
-    {/* Users Table */}
-    <div className="table-container">
-      <table className="table">
-        <thead>
-          <tr>
-            <th>User</th>
-            <th>Credits</th>
-            <th>Activity</th>
-            <th>Joined</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {[
-            { name: 'Admin User', username: '@admin', credits: 1000, activity: 'Very Active', joined: '2024-01-01', status: 'admin' },
-            { name: 'Premium User', username: '@premium', credits: 500, activity: 'Active', joined: '2024-01-15', status: 'premium' },
-            { name: 'Regular User', username: '@user123', credits: 25, activity: 'Moderate', joined: '2024-02-01', status: 'active' },
-            { name: 'New User', username: '@newbie', credits: 10, activity: 'New', joined: '2024-02-10', status: 'new' },
-            { name: 'Power User', username: '@poweruser', credits: 750, activity: 'Very Active', joined: '2024-01-20', status: 'premium' },
-          ].map((user, index) => (
-            <tr key={index}>
-              <td>
-                <div className="flex items-center gap-sm">
-                  <div style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
-                    background: user.status === 'admin' ? 'linear-gradient(135deg, var(--accent-orange), var(--accent-pink))' :
-                               user.status === 'premium' ? 'linear-gradient(135deg, var(--accent-green), var(--accent-blue))' :
-                               'linear-gradient(135deg, var(--bg-tertiary), var(--border-color))',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '0.875rem',
-                    fontWeight: 'var(--font-weight-bold)',
-                    color: 'var(--text-primary)'
-                  }}>
-                    {user.status === 'admin' ? '👑' : user.status === 'premium' ? '⭐' : user.name.charAt(0)}
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--text-primary)' }}>{user.name}</div>
-                    <div className="text-secondary text-small">{user.username}</div>
-                  </div>
-                </div>
-              </td>
-              <td>
-                <span className="badge badge-info">{user.credits}</span>
-              </td>
-              <td>
-                <span className={`badge ${
-                  user.activity === 'Very Active' ? 'badge-success' :
-                  user.activity === 'Active' ? 'badge-info' :
-                  user.activity === 'Moderate' ? 'badge-warning' : 'badge-info'
-                }`}>
-                  {user.activity}
-                </span>
-              </td>
-              <td className="text-secondary">{user.joined}</td>
-              <td>
-                <div className="flex gap-xs">
-                  <button className="btn btn-secondary btn-sm">👁️ View</button>
-                  <button className="btn btn-secondary btn-sm">✏️ Edit</button>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    {/* Railway-style deployment list for active users */}
+    <div style={{ marginBottom: 'var(--spacing-lg)' }}>
+      <div style={{
+        backgroundColor: 'var(--bg-card)',
+        border: '1px solid var(--border-color)',
+        borderRadius: 'var(--radius-sm)',
+        overflow: 'hidden'
+      }}>
+        {/* Active user entry - Railway style */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          padding: 'var(--spacing-md)',
+          borderBottom: '1px solid var(--border-color)',
+          backgroundColor: 'var(--bg-tertiary)'
+        }}>
+          <div style={{
+            backgroundColor: 'var(--accent-green)',
+            color: 'var(--bg-primary)',
+            padding: '4px 8px',
+            borderRadius: 'var(--radius-xs)',
+            fontSize: '0.75rem',
+            fontWeight: 'var(--font-weight-bold)',
+            marginRight: 'var(--spacing-md)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px'
+          }}>
+            ACTIVE
+          </div>
+          <div className="flex items-center gap-sm" style={{ flex: 1 }}>
+            <div style={{
+              width: '20px',
+              height: '20px',
+              backgroundColor: 'var(--accent-green)',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '0.75rem'
+            }}>
+              👑
+            </div>
+            <span style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--text-primary)' }}>
+              Premium User Activity - Active Session
+            </span>
+          </div>
+          <div className="text-secondary" style={{ fontSize: '0.875rem' }}>
+            2 minutes ago via Telegram
+          </div>
+          <button style={{
+            backgroundColor: 'transparent',
+            border: 'none',
+            color: 'var(--text-secondary)',
+            padding: 'var(--spacing-xs)',
+            marginLeft: 'var(--spacing-sm)',
+            cursor: 'pointer'
+          }}>
+            ⋯
+          </button>
+        </div>
+
+        {/* Deploying user - Railway style */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          padding: 'var(--spacing-md)',
+          backgroundColor: 'var(--bg-secondary)'
+        }}>
+          <div style={{
+            backgroundColor: 'var(--accent-blue)',
+            color: 'var(--text-primary)',
+            padding: '4px 8px',
+            borderRadius: 'var(--radius-xs)',
+            fontSize: '0.75rem',
+            fontWeight: 'var(--font-weight-bold)',
+            marginRight: 'var(--spacing-md)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px'
+          }}>
+            PROCESSING
+          </div>
+          <div className="flex items-center gap-sm" style={{ flex: 1 }}>
+            <div style={{
+              width: '20px',
+              height: '20px',
+              backgroundColor: 'var(--accent-blue)',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '0.75rem'
+            }}>
+              ⚡
+            </div>
+            <span style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--text-primary)' }}>
+              New User Registration - Processing Credits
+            </span>
+          </div>
+          <div className="text-secondary" style={{ fontSize: '0.875rem' }}>
+            Processing... User verification
+          </div>
+          <button style={{
+            backgroundColor: 'transparent',
+            border: 'none',
+            color: 'var(--text-secondary)',
+            padding: 'var(--spacing-xs)',
+            marginLeft: 'var(--spacing-sm)',
+            cursor: 'pointer'
+          }}>
+            ⋯
+          </button>
+        </div>
+      </div>
+    </div>
+
+    {/* Railway-style history section */}
+    <div>
+      <button style={{
+        backgroundColor: 'transparent',
+        border: 'none',
+        color: 'var(--text-secondary)',
+        fontSize: '0.875rem',
+        fontWeight: 'var(--font-weight-medium)',
+        marginBottom: 'var(--spacing-md)',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 'var(--spacing-xs)'
+      }}>
+        ▼ HISTORY
+      </button>
+
+      <div style={{
+        backgroundColor: 'var(--bg-card)',
+        border: '1px solid var(--border-color)',
+        borderRadius: 'var(--radius-sm)',
+        overflow: 'hidden'
+      }}>
+        {/* History items - Railway style */}
+        {[
+          { type: 'UX Enhancement', status: 'REMOVED', time: '13 minutes ago', icon: '🎨', description: 'Improved user dashboard layout' },
+          { type: 'Fix', status: 'REMOVED', time: '20 minutes ago', icon: '🔧', description: 'Fixed contrast issues - improved text readability' },
+          { type: 'Deploy', status: 'REMOVED', time: '24 minutes ago', icon: '🚀', description: 'Force redeploy: Trigger Railway with fresh code' },
+          { type: 'UI/UX', status: 'REMOVED', time: '26 minutes ago', icon: '💎', description: 'Major UI/UX Overhaul: DeviantArt-Inspired Design' },
+          { type: 'Debug', status: 'REMOVED', time: '35 minutes ago', icon: '🐛', description: 'Add products table debugging to fix API endpoint' },
+          { type: 'Fix', status: 'REMOVED', time: '38 minutes ago', icon: '🔧', description: 'Fix products endpoint: correct column names' },
+          { type: 'Deploy', status: 'REMOVED', time: '42 minutes ago', icon: '🚀', description: 'Trigger redeploy with fresh DATABASE_URL update' },
+          { type: 'Database', status: 'FAILED', time: '47 minutes ago', icon: '💾', description: 'Add fresh database initialization with complete schema' },
+          { type: 'Test', status: 'REMOVED', time: '52 minutes ago', icon: '🧪', description: 'Add database connection test to diagnose issues' }
+        ].map((item, index) => (
+          <div key={index} style={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: 'var(--spacing-md)',
+            borderBottom: index < 8 ? '1px solid var(--border-color)' : 'none',
+            backgroundColor: 'var(--bg-secondary)'
+          }}>
+            <div style={{
+              backgroundColor: item.status === 'FAILED' ? 'var(--accent-red)' : 'var(--text-secondary)',
+              color: 'var(--text-primary)',
+              padding: '4px 8px',
+              borderRadius: 'var(--radius-xs)',
+              fontSize: '0.75rem',
+              fontWeight: 'var(--font-weight-bold)',
+              marginRight: 'var(--spacing-md)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              minWidth: '70px',
+              textAlign: 'center'
+            }}>
+              {item.status}
+            </div>
+            <div className="flex items-center gap-sm" style={{ flex: 1 }}>
+              <div style={{
+                width: '20px',
+                height: '20px',
+                backgroundColor: 'var(--bg-tertiary)',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '0.75rem',
+                border: '1px solid var(--border-color)'
+              }}>
+                {item.icon}
+              </div>
+              <span style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--text-primary)' }}>
+                {item.description}
+              </span>
+            </div>
+            <div className="text-secondary" style={{ fontSize: '0.875rem' }}>
+              {item.time} via GitHub
+            </div>
+            <button style={{
+              backgroundColor: 'transparent',
+              border: 'none',
+              color: 'var(--text-secondary)',
+              padding: 'var(--spacing-xs)',
+              marginLeft: 'var(--spacing-sm)',
+              cursor: 'pointer'
+            }}>
+              ⋯
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   </div>
 );

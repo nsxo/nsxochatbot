@@ -238,7 +238,7 @@ const DashboardPage: React.FC = () => {
       {/* Main Content Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-lg)' }}>
         
-        {/* Compact Activity Feed */}
+        {/* Railway-style Activity Feed */}
         <div className="card">
           <div className="card-header">
             <h3 className="card-title">Recent Activity</h3>
@@ -248,34 +248,79 @@ const DashboardPage: React.FC = () => {
             </div>
           </div>
           <div className="card-body">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
-              {recentActivities.map((activity) => (
-                <div key={activity.id} className="activity-item">
-                  <div 
-                    className="activity-icon"
-                    style={{ borderColor: getActivityColor(activity.type) }}
-                  >
-                    {getActivityIcon(activity.type)}
+            <div style={{ 
+              backgroundColor: 'var(--bg-tertiary)',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-sm)',
+              overflow: 'hidden'
+            }}>
+              {recentActivities.map((activity, index) => (
+                <div key={activity.id} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: 'var(--spacing-md)',
+                  borderBottom: index < recentActivities.length - 1 ? '1px solid var(--border-color)' : 'none',
+                  backgroundColor: 'var(--bg-secondary)',
+                  transition: 'var(--transition-fast)'
+                }}>
+                  <div style={{
+                    backgroundColor: activity.status === 'completed' ? 'var(--accent-green)' :
+                                   activity.status === 'pending' ? 'var(--accent-orange)' : 'var(--accent-red)',
+                    color: 'var(--text-primary)',
+                    padding: '4px 8px',
+                    borderRadius: 'var(--radius-xs)',
+                    fontSize: '0.75rem',
+                    fontWeight: 'var(--font-weight-bold)',
+                    marginRight: 'var(--spacing-md)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    minWidth: '80px',
+                    textAlign: 'center'
+                  }}>
+                    {activity.status}
                   </div>
-                  <div className="activity-content">
-                    <div className="activity-title">{activity.description}</div>
-                    <div className="activity-meta">{activity.user} • {activity.timestamp}</div>
+                  <div className="flex items-center gap-sm" style={{ flex: 1 }}>
+                    <div style={{
+                      width: '20px',
+                      height: '20px',
+                      backgroundColor: 'var(--bg-tertiary)',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '0.75rem',
+                      border: '1px solid var(--border-color)'
+                    }}>
+                      {getActivityIcon(activity.type)}
+                    </div>
+                    <span style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--text-primary)' }}>
+                      {activity.description}
+                    </span>
                   </div>
-                  <div className="flex items-center gap-xs">
+                  <div className="flex items-center gap-sm">
                     {activity.amount && (
-                      <span className="activity-amount" style={{ 
+                      <span style={{ 
+                        fontSize: '0.875rem',
+                        fontWeight: 'var(--font-weight-bold)',
                         color: activity.type === 'purchase' ? 'var(--accent-green)' : 'var(--text-primary)'
                       }}>
                         {activity.amount}
                       </span>
                     )}
-                    <span className={`badge ${
-                      activity.status === 'completed' ? 'badge-success' :
-                      activity.status === 'pending' ? 'badge-warning' : 'badge-danger'
-                    }`}>
-                      {activity.status}
-                    </span>
+                    <div className="text-secondary" style={{ fontSize: '0.875rem' }}>
+                      {activity.timestamp} via Telegram
+                    </div>
                   </div>
+                  <button style={{
+                    backgroundColor: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-secondary)',
+                    padding: 'var(--spacing-xs)',
+                    marginLeft: 'var(--spacing-sm)',
+                    cursor: 'pointer'
+                  }}>
+                    ⋯
+                  </button>
                 </div>
               ))}
             </div>

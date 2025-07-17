@@ -1078,3 +1078,261 @@ a:hover {
   color: var(--text-primary);
   background-color: var(--bg-tertiary);
 } 
+
+/* 17. Railway-Inspired Design Components */
+
+/* Railway deployment item style */
+.railway-item {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-md);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  transition: var(--transition-fast);
+}
+
+.railway-item:hover {
+  background: var(--bg-hover);
+}
+
+.railway-item:last-child {
+  border-bottom: none;
+}
+
+/* Railway status badge */
+.railway-status {
+  padding: 4px 8px;
+  border-radius: var(--radius-xs);
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-right: var(--spacing-md);
+  min-width: 70px;
+  text-align: center;
+}
+
+.railway-status.active {
+  background-color: var(--accent-green);
+  color: var(--bg-primary);
+}
+
+.railway-status.processing {
+  background-color: var(--accent-blue);
+  color: var(--text-primary);
+}
+
+.railway-status.failed {
+  background-color: var(--accent-red);
+  color: var(--text-primary);
+}
+
+.railway-status.removed {
+  background-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+/* Railway icon circle */
+.railway-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  margin-right: var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+}
+
+/* Railway container */
+.railway-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+/* Railway header info */
+.railway-header-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+/* Railway collapsible section */
+.railway-section-toggle {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: var(--font-weight-medium);
+  margin-bottom: var(--spacing-md);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.railway-section-toggle:hover {
+  color: var(--text-primary);
+}
+
+/* Railway action button */
+.railway-action-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: var(--spacing-xs);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.railway-action-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* Railway clean typography */
+.railway-title {
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.railway-subtitle {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.railway-timestamp {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+/* Railway minimal spacing */
+.railway-spacing {
+  margin-bottom: var(--spacing-lg);
+}
+
+/* Railway flex layout helpers */
+.railway-flex {
+  display: flex;
+  align-items: center;
+}
+
+.railway-flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.railway-flex-1 {
+  flex: 1;
+}
+
+/* Railway clean borders */
+.railway-border {
+  border: 1px solid var(--border-color);
+}
+
+.railway-border-bottom {
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Railway minimal buttons */
+.btn-railway {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-xs);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.btn-railway:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-light);
+}
+
+/* Railway deployment list styling */
+.railway-deployment-list {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.railway-deployment-item {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+
+.railway-deployment-item:last-child {
+  border-bottom: none;
+}
+
+.railway-deployment-item:hover {
+  background: var(--bg-hover);
+}
+
+/* Railway active deployment highlight */
+.railway-deployment-item.active {
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Railway history section */
+.railway-history {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.railway-history-item {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+
+.railway-history-item:last-child {
+  border-bottom: none;
+}
+
+/* Railway minimal scrollbar */
+.railway-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) transparent;
+}
+
+.railway-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.railway-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.railway-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+.railway-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--border-light);
+} 
