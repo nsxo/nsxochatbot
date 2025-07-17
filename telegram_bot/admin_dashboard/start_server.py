@@ -19,6 +19,7 @@ def setup_environment():
     project_root = Path(__file__).parent.parent
     src_path = project_root / "src"
     sys.path.insert(0, str(src_path))
+    sys.path.insert(0, str(project_root))
     
     print("✅ Environment configured")
 
@@ -27,6 +28,11 @@ def build_frontend():
     
     dashboard_dir = Path(__file__).parent
     os.chdir(dashboard_dir)
+    
+    # Skip frontend build if dist already exists (Docker handles this)
+    if os.path.exists("dist"):
+        print("✅ Frontend already built")
+        return
     
     print("📦 Installing frontend dependencies...")
     try:
@@ -54,12 +60,21 @@ def start_bot():
             os.chdir(project_root)
             
             print("🤖 Starting Telegram bot...")
-            # Import and run the bot
-            sys.path.insert(0, "src")
-            import bot
-            asyncio.run(bot.main())
+            
+            # Try to import and run the bot
+            try:
+                sys.path.insert(0, "src")
+                from bot import main as bot_main
+                asyncio.run(bot_main())
+            except ImportError as e:
+                print(f"⚠️  Bot import failed: {e}")
+                print("Running without bot (dashboard only)")
+            except Exception as e:
+                print(f"❌ Bot startup failed: {e}")
+                print("Continuing with dashboard only...")
+                
         except Exception as e:
-            print(f"❌ Bot startup failed: {e}")
+            print(f"❌ Bot thread error: {e}")
     
     bot_thread = threading.Thread(target=run_bot, daemon=True)
     bot_thread.start()
@@ -88,8 +103,8 @@ async def main():
     # Setup environment
     setup_environment()
     
-    # Build frontend (in production)
-    if os.getenv("NODE_ENV") == "production" or os.getenv("RAILWAY_ENVIRONMENT"):
+    # Build frontend (only if needed)
+    if not os.path.exists(Path(__file__).parent / "dist"):
         build_frontend()
     
     # Start bot in background
