@@ -20,6 +20,7 @@ def get_schema_queries() -> List[str]:
             message_credits INTEGER DEFAULT 0,
             time_credits INTEGER DEFAULT 0,
             time_credits_seconds INTEGER DEFAULT 0,
+            stripe_customer_id VARCHAR(255),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

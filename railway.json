@@ -6,7 +6,7 @@
   },
   "deploy": {
     "startCommand": "python deployment/simple_railway_bot.py",
-    "initCommand": "python deployment/railway_init_db.py",
+    "initCommand": "python deployment/migrate_database.py && python deployment/railway_init_db.py",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3
   }
