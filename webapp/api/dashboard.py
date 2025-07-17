@@ -421,7 +421,19 @@ def get_users():
 def serve_index():
     """Serve the React app."""
     try:
-        return send_file('dist/index.html')
+        # Check for dist directory in multiple possible locations
+        possible_paths = ['dist/index.html', '../dist/index.html', './dist/index.html']
+        for path in possible_paths:
+            if os.path.exists(path):
+                return send_file(path)
+        
+        # If no dist found, return error with directory info
+        return f"""
+        <h1>Admin Dashboard - Setup Required</h1>
+        <p>React app not built. Working directory: {os.getcwd()}</p>
+        <p>Available files: {os.listdir('.')}</p>
+        <p>To fix: Build the React app with 'npm run build'</p>
+        """, 500
     except Exception as e:
         logger.error(f"Error serving index.html: {e}")
         return f"<h1>Admin Dashboard</h1><p>Error loading app: {e}</p><p>Working directory: {os.getcwd()}</p>", 500
@@ -434,13 +446,22 @@ def serve_static(path):
         return jsonify({'error': 'API endpoint not found'}), 404
     
     try:
-        return send_from_directory('dist', path)
-    except Exception as e:
+        # Check for dist directory in multiple possible locations
+        possible_dirs = ['dist', '../dist', './dist']
+        for dist_dir in possible_dirs:
+            if os.path.exists(os.path.join(dist_dir, path)):
+                return send_from_directory(dist_dir, path)
+        
         # Fallback to index.html for client-side routing
-        try:
-            return send_file('dist/index.html')
-        except:
-            return f"Error loading asset: {path}", 404
+        for dist_dir in possible_dirs:
+            index_path = os.path.join(dist_dir, 'index.html')
+            if os.path.exists(index_path):
+                return send_file(index_path)
+                
+        return f"Error: Could not find asset {path} in any dist directory", 404
+    except Exception as e:
+        logger.error(f"Error serving static file {path}: {e}")
+        return f"Error loading asset: {path}", 404
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8000))
