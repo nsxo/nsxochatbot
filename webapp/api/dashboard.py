@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 API endpoints for admin dashboard to connect to bot database.
+Fresh database deployment - trigger redeploy with new DATABASE_URL.
 """
 
 import os
