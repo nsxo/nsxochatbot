@@ -1493,3 +1493,65 @@ def update_user_auto_recharge_settings(user_id: int, enabled: bool, amount: int 
     except Exception as e:
         logger.error(f"Error updating auto-recharge settings: {e}")
         return False
+
+def ensure_user_exists(user_id: int, username: str = None, first_name: str = None) -> bool:
+    """Ensure user exists in database, create if not exists."""
+    try:
+        # Check if user exists
+        query = "SELECT telegram_id FROM users WHERE telegram_id = %s" if db_manager._db_type == 'postgresql' else "SELECT telegram_id FROM users WHERE telegram_id = ?"
+        existing = db_manager.execute_query(query, (user_id,), fetch_one=True)
+        
+        if not existing:
+            # Create new user
+            query = """
+            INSERT INTO users (telegram_id, username, first_name, message_credits, created_at) 
+            VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
+            """ if db_manager._db_type == 'postgresql' else """
+            INSERT INTO users (telegram_id, username, first_name, message_credits, created_at) 
+            VALUES (?, ?, ?, ?, datetime('now'))
+            """
+            starting_credits = int(get_setting('starting_credits', '10'))
+            db_manager.execute_query(query, (user_id, username, first_name, starting_credits))
+            logger.info(f"Created new user: {user_id} (@{username})")
+        return True
+    except Exception as e:
+        logger.error(f"Error ensuring user exists: {e}")
+        return False
+
+def get_user_stats_individual(user_id: int) -> Dict[str, Any]:
+    """Get individual user statistics."""
+    try:
+        # Get message count from transactions or a simple count
+        query = """
+        SELECT COUNT(*) as total_messages
+        FROM transactions 
+        WHERE user_id = %s AND transaction_type = 'message'
+        """ if db_manager._db_type == 'postgresql' else """
+        SELECT COUNT(*) as total_messages
+        FROM transactions 
+        WHERE user_id = ? AND transaction_type = 'message'
+        """
+        result = db_manager.execute_query(query, (user_id,), fetch_one=True)
+        total_messages = result[0] if result else 0
+        
+        # Get user creation date
+        query = """
+        SELECT created_at, message_credits
+        FROM users WHERE telegram_id = %s
+        """ if db_manager._db_type == 'postgresql' else """
+        SELECT created_at, message_credits
+        FROM users WHERE telegram_id = ?
+        """
+        result = db_manager.execute_query(query, (user_id,), fetch_one=True)
+        
+        if result:
+            return {
+                'total_messages': total_messages,
+                'member_since': result[0],
+                'current_credits': result[1]
+            }
+        else:
+            return {'total_messages': 0, 'member_since': None, 'current_credits': 0}
+    except Exception as e:
+        logger.error(f"Error getting user stats: {e}")
+        return {'total_messages': 0, 'member_since': None, 'current_credits': 0}
