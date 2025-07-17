@@ -1,269 +1,205 @@
-import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
-import { ThemeProvider } from '@mui/material/styles'
-import { CssBaseline, Box } from '@mui/material'
-import TelegramHeader from './components/TelegramHeader'
-import TelegramNavigation from './components/TelegramNavigation'
-import { useTelegramWebApp } from './hooks/useTelegramWebApp'
-import { useDynamicTheme } from './hooks/useDynamicTheme'
-import { usePageNavigation } from './hooks/useGestureNavigation'
-import { 
-  DashboardArtisticSimple, 
-  CreditPurchase, 
-  Settings,
-  initializePerformanceOptimizations
-} from './utils/lazyComponents'
+import { useState } from 'react'
+import './styles/index.css'
 
-type Page = 'dashboard' | 'credits' | 'settings'
+// Simple pages
+const Dashboard = () => (
+  <div className="min-h-screen bg-gray-50 p-4">
+    <div className="max-w-4xl mx-auto">
+      <h1 className="text-3xl font-bold text-gray-900 mb-8">Admin Dashboard</h1>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Users</p>
+              <p className="text-3xl font-bold text-gray-900">1,234</p>
+            </div>
+            <div className="text-2xl">👥</div>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Messages Today</p>
+              <p className="text-3xl font-bold text-gray-900">567</p>
+            </div>
+            <div className="text-2xl">💬</div>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Revenue</p>
+              <p className="text-3xl font-bold text-gray-900">$890</p>
+            </div>
+            <div className="text-2xl">💰</div>
+          </div>
+        </div>
+      </div>
+      
+      <div className="bg-white rounded-lg shadow">
+        <div className="p-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Actions</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left">
+              <div className="text-lg mb-2">⚙️</div>
+              <div className="font-medium">Settings</div>
+              <div className="text-sm text-gray-600">Configure bot settings</div>
+            </button>
+            <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left">
+              <div className="text-lg mb-2">🛒</div>
+              <div className="font-medium">Products</div>
+              <div className="text-sm text-gray-600">Manage credit packages</div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+)
+
+const Settings = () => (
+  <div className="min-h-screen bg-gray-50 p-4">
+    <div className="max-w-4xl mx-auto">
+      <h1 className="text-3xl font-bold text-gray-900 mb-8">Settings</h1>
+      
+      <div className="space-y-6">
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Welcome Message</h2>
+          <textarea 
+            className="w-full p-3 border border-gray-300 rounded-lg"
+            rows={4}
+            placeholder="Enter welcome message..."
+          />
+          <button className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+            Save Changes
+          </button>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Pricing Configuration</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Credits per Dollar
+              </label>
+              <input 
+                type="number" 
+                className="w-full p-3 border border-gray-300 rounded-lg"
+                placeholder="100"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Minimum Purchase
+              </label>
+              <input 
+                type="number" 
+                className="w-full p-3 border border-gray-300 rounded-lg"
+                placeholder="1"
+              />
+            </div>
+          </div>
+          <button className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+            Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)
+
+const Products = () => (
+  <div className="min-h-screen bg-gray-50 p-4">
+    <div className="max-w-4xl mx-auto">
+      <h1 className="text-3xl font-bold text-gray-900 mb-8">Credit Packages</h1>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Starter</h3>
+          <p className="text-3xl font-bold text-blue-600 mb-4">$5</p>
+          <p className="text-gray-600 mb-4">500 Credits</p>
+          <button className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
+            Edit Package
+          </button>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Pro</h3>
+          <p className="text-3xl font-bold text-blue-600 mb-4">$10</p>
+          <p className="text-gray-600 mb-4">1,200 Credits</p>
+          <button className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
+            Edit Package
+          </button>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Premium</h3>
+          <p className="text-3xl font-bold text-blue-600 mb-4">$20</p>
+          <p className="text-gray-600 mb-4">2,500 Credits</p>
+          <button className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
+            Edit Package
+          </button>
+        </div>
+      </div>
+      
+      <div className="mt-8">
+        <button className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700">
+          + Add New Package
+        </button>
+      </div>
+    </div>
+  </div>
+)
+
+const Navigation = ({ currentPage, onNavigate }: { currentPage: string, onNavigate: (page: string) => void }) => (
+  <div className="bg-white shadow">
+    <div className="max-w-4xl mx-auto px-4">
+      <div className="flex space-x-8">
+        <button 
+          onClick={() => onNavigate('dashboard')}
+          className={`py-4 px-2 border-b-2 ${currentPage === 'dashboard' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+        >
+          🏠 Dashboard
+        </button>
+        <button 
+          onClick={() => onNavigate('settings')}
+          className={`py-4 px-2 border-b-2 ${currentPage === 'settings' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+        >
+          ⚙️ Settings
+        </button>
+        <button 
+          onClick={() => onNavigate('products')}
+          className={`py-4 px-2 border-b-2 ${currentPage === 'products' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                >
+          🛒 Products
+        </button>
+      </div>
+    </div>
+  </div>
+)
 
 function App() {
-  const [currentPage, setCurrentPage] = useState<Page>('dashboard')
-  
-  // Enhanced Telegram WebApp integration
-  const {
-    isLoaded,
-    user,
-    hapticFeedback,
-    showAlert,
-    showConfirm,
-    cloudStorage,
-    shareContent,
-    hasHapticFeedback,
-    hasCloudStorage,
-    isMobile,
-    isDesktop
-  } = useTelegramWebApp()
+  const [currentPage, setCurrentPage] = useState('dashboard')
 
-  // Dynamic theme with Telegram sync
-  const {
-    theme,
-    themeMode,
-    isTransitioning,
-    themeVariables,
-    isDarkMode,
-    toggleTheme,
-    hasTelegramTheme,
-    telegramColorScheme
-  } = useDynamicTheme({
-    enableAutoSync: true,
-    preferredMode: 'auto',
-    animationDuration: 300
-  })
-
-  const navigateToPage = (page: Page) => {
-    // Add haptic feedback for navigation
-    if (hasHapticFeedback) {
-      hapticFeedback.selection()
-    }
-    setCurrentPage(page)
-  }
-
-  // Gesture navigation for mobile users
-  const pages = ['dashboard', 'credits', 'settings']
-  const {
-    isGesturing,
-    gestureIndicator,
-    canSwipeLeft,
-    canSwipeRight,
-    isMobileDevice
-  } = usePageNavigation(pages, currentPage, (page: string) => navigateToPage(page as Page), {
-    threshold: 80,
-    velocityThreshold: 0.4,
-    preventScroll: true
-  })
-
-  useEffect(() => {
-    // Initialize performance optimizations
-    initializePerformanceOptimizations()
-    
-    // Log integration status
-    console.log('🚀 Enhanced Telegram Mini App loaded:', {
-      telegramLoaded: isLoaded,
-      hapticFeedback: hasHapticFeedback,
-      cloudStorage: hasCloudStorage,
-      telegramTheme: hasTelegramTheme,
-      deviceType: isMobile ? 'mobile' : isDesktop ? 'desktop' : 'unknown'
-    })
-  }, [isLoaded, hasHapticFeedback, hasCloudStorage, hasTelegramTheme, isMobile, isDesktop])
-
-  const handleShare = async () => {
-    try {
-      await shareContent(
-        '🎨 Check out this amazing AI-powered creative dashboard!',
-        'https://nsxochatbot.surge.sh'
-      )
-      
-      if (hasHapticFeedback) {
-        hapticFeedback.notification('success')
-      }
-    } catch (error) {
-      console.error('Share failed:', error)
-      showAlert('Sharing is not available on this platform')
-    }
-  }
-
-  const handleThemeToggle = async () => {
-    if (hasHapticFeedback) {
-      hapticFeedback.impact('light')
-    }
-    await toggleTheme()
-  }
-
-  const renderCurrentPage = () => {
+  const renderPage = () => {
     switch (currentPage) {
-      case 'dashboard':
-        return <DashboardArtisticSimple />
-      case 'credits':
-        return <CreditPurchase />
       case 'settings':
         return <Settings />
+      case 'products':
+        return <Products />
       default:
-        return <DashboardArtisticSimple />
+        return <Dashboard />
     }
-  }
-
-  if (!isLoaded) {
-    return (
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <Box 
-          sx={{ 
-            ...themeVariables,
-            minHeight: '100vh',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: theme.palette.background.default,
-            transition: `background-color ${theme.transitions.duration?.standard}ms ${theme.transitions.easing?.easeInOut}`
-          }}
-        >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5 }}
-          >
-            {/* Loading will be handled by lazy components */}
-          </motion.div>
-        </Box>
-      </ThemeProvider>
-    )
   }
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Box 
-        sx={{ 
-          ...themeVariables,
-          minHeight: '100vh',
-          backgroundColor: theme.palette.background.default,
-          color: theme.palette.text.primary,
-          transition: `all ${theme.transitions.duration?.standard}ms ${theme.transitions.easing?.easeInOut}`,
-          ...(isTransitioning && {
-            pointerEvents: 'none'
-          })
-        }}
-      >
-        {/* Enhanced Header */}
-        <TelegramHeader 
-          user={user}
-        />
-
-        {/* Main Content with enhanced transitions */}
-        <motion.main
-          key={currentPage}
-          initial={{ 
-            opacity: 0, 
-            x: 20,
-            filter: 'blur(4px)'
-          }}
-          animate={{ 
-            opacity: 1, 
-            x: 0,
-            filter: 'blur(0px)'
-          }}
-          exit={{ 
-            opacity: 0, 
-            x: -20,
-            filter: 'blur(4px)'
-          }}
-          transition={{
-            duration: 0.4,
-            ease: [0.4, 0, 0.2, 1]
-          }}
-          style={{
-            paddingBottom: '80px' // Account for navigation
-          }}
-        >
-          {renderCurrentPage()}
-        </motion.main>
-
-        {/* Enhanced Navigation */}
-        <TelegramNavigation 
-          currentPage={currentPage}
-          onNavigate={navigateToPage}
-        />
-
-        {/* Gesture indicator for mobile users */}
-        {isGesturing && gestureIndicator && isMobileDevice && (
-          <Box
-            sx={{
-              position: 'fixed',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              backgroundColor: 'rgba(0,0,0,0.8)',
-              color: 'white',
-              px: 3,
-              py: 2,
-              borderRadius: 3,
-              zIndex: 9999,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-              backdropFilter: 'blur(10px)',
-              border: `2px solid ${gestureIndicator.isValid ? theme.palette.success.main : theme.palette.warning.main}`,
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <Box sx={{ fontSize: '1.5rem' }}>
-              {gestureIndicator.direction === 'left' && '→'}
-              {gestureIndicator.direction === 'right' && '←'}
-              {gestureIndicator.direction === 'up' && '↑'}
-              {gestureIndicator.direction === 'down' && '↓'}
-            </Box>
-            <Box sx={{ fontSize: '0.9rem', fontWeight: 600 }}>
-              {gestureIndicator.direction === 'left' && canSwipeLeft && 'Next Page'}
-              {gestureIndicator.direction === 'right' && canSwipeRight && 'Previous Page'}
-              {!((gestureIndicator.direction === 'left' && canSwipeLeft) || (gestureIndicator.direction === 'right' && canSwipeRight)) && 'Swipe'}
-            </Box>
-          </Box>
-        )}
-
-        {/* Development info (remove in production) */}
-        {process.env.NODE_ENV === 'development' && (
-          <Box
-            sx={{
-              position: 'fixed',
-              top: 10,
-              right: 10,
-              p: 1,
-              backgroundColor: 'rgba(0,0,0,0.7)',
-              color: 'white',
-              fontSize: '0.7rem',
-              borderRadius: 1,
-              zIndex: 9999,
-              fontFamily: 'monospace'
-            }}
-          >
-            Theme: {themeMode} | TG: {hasTelegramTheme ? 'Yes' : 'No'} | 
-            Haptic: {hasHapticFeedback ? 'Yes' : 'No'} | 
-            Device: {isMobile ? 'Mobile' : isDesktop ? 'Desktop' : 'Unknown'} |
-            Gestures: {isMobileDevice ? 'On' : 'Off'}
-          </Box>
-        )}
-      </Box>
-    </ThemeProvider>
+    <div className="min-h-screen bg-gray-50">
+      <Navigation currentPage={currentPage} onNavigate={setCurrentPage} />
+      {renderPage()}
+    </div>
   )
 }
 
