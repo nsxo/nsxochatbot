@@ -1,0 +1,146 @@
+# ==============================================
+# TELEGRAM BOT - COMPREHENSIVE .GITIGNORE
+# ==============================================
+
+# Environment variables & Secrets
+.env
+.env.*
+!.env.example
+.env.local
+.env.*.local
+config.ini
+secrets/
+*.key
+*.pem
+*.p12
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# IDE & Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+log/
+bot.log*
+webhook.log*
+error.log*
+debug.log*
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+data/
+database/
+backups/
+*.dump
+*.sql.backup
+
+# Bot specific files
+bot_*.py
+miniapp_*.py
+*_demo.md
+TODO_*.md
+FINAL_*.md
+*_backup_*.py
+*_old.py
+*_test.py
+temp_*.py
+
+# Stripe & Payment files
+stripe_*.json
+payment_logs/
+transactions/
+
+# Redis & Cache
+dump.rdb
+*.rdb
+cache/
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+
+# Documentation builds
+docs/_build/
+site/
+
+# OS Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+*~
+
+# Node.js (for any frontend tools)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Railway & Deployment
+.railway/
+railway-debug.log
+
+# Version control
+.git/
+.svn/
+.hg/ 

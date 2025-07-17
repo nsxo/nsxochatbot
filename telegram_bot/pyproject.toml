@@ -1,0 +1,25 @@
+[tool.pylint]
+disable = [
+    "missing-module-docstring",
+    "missing-class-docstring", 
+    "missing-function-docstring",
+    "invalid-name",
+    "too-few-public-methods",
+    "too-many-arguments",
+    "too-many-locals",
+    "too-many-branches",
+    "too-many-statements",
+    "redefined-builtin",  # Allows using 'credits' as variable name
+]
+
+[tool.pylint.logging]
+logging-format-style = "old"  # Use % formatting instead of f-strings
+
+[tool.black]
+line-length = 100
+target-version = ['py39']
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true 

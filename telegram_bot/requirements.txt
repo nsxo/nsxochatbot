@@ -1,0 +1,23 @@
+# Core dependencies
+python-telegram-bot>=20.0
+psycopg2-binary>=2.9.0
+python-dotenv>=1.0.0
+flask>=2.3.0
+stripe>=7.0.0
+
+# Database and caching
+redis>=4.5.0
+
+# Utilities
+requests>=2.31.0
+Pillow>=10.0.0
+
+# Development and monitoring
+sentry-sdk>=1.32.0
+
+# Performance and data validation
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# Typing
+typing-extensions>=4.7.0 
