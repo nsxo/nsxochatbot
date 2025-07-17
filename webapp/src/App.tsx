@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import Layout from './components/Layout'
 import DashboardPage from './components/DashboardPage'
+import { DeviantIcon } from './components/DeviantIcons'
 import './styles/deviant-theme.css'
 
 // Settings Page - Focused on core bot configuration
@@ -472,15 +473,15 @@ const UsersPage = () => (
       }}>
         {/* History items - Railway style */}
         {[
-          { type: 'UX Enhancement', status: 'REMOVED', time: '13 minutes ago', icon: '🎨', description: 'Improved user dashboard layout' },
-          { type: 'Fix', status: 'REMOVED', time: '20 minutes ago', icon: '🔧', description: 'Fixed contrast issues - improved text readability' },
-          { type: 'Deploy', status: 'REMOVED', time: '24 minutes ago', icon: '🚀', description: 'Force redeploy: Trigger Railway with fresh code' },
-          { type: 'UI/UX', status: 'REMOVED', time: '26 minutes ago', icon: '💎', description: 'Major UI/UX Overhaul: DeviantArt-Inspired Design' },
-          { type: 'Debug', status: 'REMOVED', time: '35 minutes ago', icon: '🐛', description: 'Add products table debugging to fix API endpoint' },
-          { type: 'Fix', status: 'REMOVED', time: '38 minutes ago', icon: '🔧', description: 'Fix products endpoint: correct column names' },
-          { type: 'Deploy', status: 'REMOVED', time: '42 minutes ago', icon: '🚀', description: 'Trigger redeploy with fresh DATABASE_URL update' },
-          { type: 'Database', status: 'FAILED', time: '47 minutes ago', icon: '💾', description: 'Add fresh database initialization with complete schema' },
-          { type: 'Test', status: 'REMOVED', time: '52 minutes ago', icon: '🧪', description: 'Add database connection test to diagnose issues' }
+          { type: 'UX Enhancement', status: 'REMOVED', time: '13 minutes ago', icon: 'analytics', description: 'Improved user dashboard layout' },
+          { type: 'Fix', status: 'REMOVED', time: '20 minutes ago', icon: 'settings', description: 'Fixed contrast issues - improved text readability' },
+          { type: 'Deploy', status: 'REMOVED', time: '24 minutes ago', icon: 'refresh', description: 'Force redeploy: Trigger Railway with fresh code' },
+          { type: 'UI/UX', status: 'REMOVED', time: '26 minutes ago', icon: 'diamond', description: 'Major UI/UX Overhaul: DeviantArt-Inspired Design' },
+          { type: 'Debug', status: 'REMOVED', time: '35 minutes ago', icon: 'system', description: 'Add products table debugging to fix API endpoint' },
+          { type: 'Fix', status: 'REMOVED', time: '38 minutes ago', icon: 'settings', description: 'Fix products endpoint: correct column names' },
+          { type: 'Deploy', status: 'REMOVED', time: '42 minutes ago', icon: 'refresh', description: 'Trigger redeploy with fresh DATABASE_URL update' },
+          { type: 'Database', status: 'FAILED', time: '47 minutes ago', icon: 'system', description: 'Add fresh database initialization with complete schema' },
+          { type: 'Test', status: 'REMOVED', time: '52 minutes ago', icon: 'analytics', description: 'Add database connection test to diagnose issues' }
         ].map((item, index) => (
           <div key={index} style={{
             display: 'flex',
@@ -516,7 +517,7 @@ const UsersPage = () => (
                 fontSize: '0.75rem',
                 border: '1px solid var(--border-color)'
               }}>
-                {item.icon}
+                <DeviantIcon name={item.icon} />
               </div>
               <span style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--text-primary)' }}>
                 {item.description}

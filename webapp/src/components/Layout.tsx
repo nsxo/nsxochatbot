@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import '../styles/deviant-theme.css';
+import { DeviantIcon } from './DeviantIcons';
 
 interface LayoutProps {
   currentPage: string;
@@ -14,22 +15,22 @@ const Layout: React.FC<LayoutProps> = ({ currentPage, onNavigate, children }) =>
     {
       title: "",
       items: [
-        { id: 'dashboard', label: 'Dashboard', icon: '🏠', description: 'Analytics & Overview' },
+        { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', description: 'Analytics & Overview' },
       ]
     },
     {
       title: "Administration",
       items: [
-        { id: 'settings', label: 'Bot Settings', icon: '⚙️', description: 'Configuration & Pricing' },
-        { id: 'products', label: 'Credit Packages', icon: '💎', description: 'Manage Pricing Plans' },
-        { id: 'users', label: 'User Management', icon: '👥', description: 'View User Activity' },
+        { id: 'settings', label: 'Bot Settings', icon: 'settings', description: 'Configuration & Pricing' },
+        { id: 'products', label: 'Credit Packages', icon: 'diamond', description: 'Manage Pricing Plans' },
+        { id: 'users', label: 'User Management', icon: 'users', description: 'View User Activity' },
       ]
     },
     {
       title: "Tools",
       items: [
-        { id: 'analytics', label: 'Analytics', icon: '📊', description: 'Detailed Reports' },
-        { id: 'logs', label: 'System Logs', icon: '📋', description: 'View System Activity' },
+        { id: 'analytics', label: 'Analytics', icon: 'analytics', description: 'Detailed Reports' },
+        { id: 'logs', label: 'System Logs', icon: 'logs', description: 'View System Activity' },
       ]
     }
   ];
@@ -74,7 +75,9 @@ const Layout: React.FC<LayoutProps> = ({ currentPage, onNavigate, children }) =>
                         setSidebarOpen(false);
                       }}
                     >
-                      <span className="nav-icon-deviant">{item.icon}</span>
+                      <span className="nav-icon-deviant">
+                        <DeviantIcon name={item.icon as keyof typeof import('./DeviantIcons').iconMap} size={18} />
+                      </span>
                       <span className="nav-text-deviant">{item.label}</span>
                     </a>
                   </li>
@@ -89,7 +92,9 @@ const Layout: React.FC<LayoutProps> = ({ currentPage, onNavigate, children }) =>
           <div className="nav-section-header">Quick Actions</div>
           
           <button className="action-button-primary">
-            <span className="action-icon">➕</span>
+            <span className="action-icon">
+              <DeviantIcon name="plus" size={16} />
+            </span>
             <span className="action-text">Create Report</span>
           </button>
           
@@ -123,7 +128,7 @@ const Layout: React.FC<LayoutProps> = ({ currentPage, onNavigate, children }) =>
               className="btn btn-secondary btn-sm sidebar-toggle"
               onClick={toggleSidebar}
             >
-              ☰
+              <DeviantIcon name="menu" size={16} />
             </button>
             <div>
               <h1 style={{ margin: 0, fontSize: '1.5rem' }}>

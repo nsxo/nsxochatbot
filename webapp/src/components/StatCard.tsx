@@ -1,4 +1,5 @@
 import React from 'react';
+import { DeviantIcon } from './DeviantIcons';
 
 interface StatCardProps {
   title: string;
@@ -16,7 +17,9 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, change, loading
     <div className="stat-card-compact">
       <div className="stat-card-content">
         <div className="stat-header-compact">
-          <div className="stat-icon-compact">{icon}</div>
+          <div className="stat-icon-compact">
+            <DeviantIcon name={icon as keyof typeof import('./DeviantIcons').iconMap} size={20} />
+          </div>
           <div className="stat-title-compact">{title}</div>
         </div>
         

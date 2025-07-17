@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import StatCard from './StatCard';
+import { DeviantIcon } from './DeviantIcons';
 
 interface DashboardStats {
   totalUsers: number;
@@ -105,11 +106,11 @@ const DashboardPage: React.FC = () => {
 
   const getActivityIcon = (type: string) => {
     switch (type) {
-      case 'purchase': return '💳';
-      case 'message': return '💬';
-      case 'registration': return '👤';
-      case 'system': return '⚙️';
-      default: return '📝';
+      case 'purchase': return <DeviantIcon name="purchase" size={12} />;
+      case 'message': return <DeviantIcon name="message" size={12} />;
+      case 'registration': return <DeviantIcon name="registration" size={12} />;
+      case 'system': return <DeviantIcon name="system" size={12} />;
+      default: return <DeviantIcon name="system" size={12} />;
     }
   };
 
@@ -127,7 +128,9 @@ const DashboardPage: React.FC = () => {
     return (
       <div className="flex items-center justify-center" style={{ minHeight: '400px' }}>
         <div className="card" style={{ textAlign: 'center', maxWidth: '500px' }}>
-          <div style={{ fontSize: '3rem', marginBottom: 'var(--spacing-md)' }}>⚠️</div>
+          <div style={{ fontSize: '3rem', marginBottom: 'var(--spacing-md)' }}>
+            <DeviantIcon name="system" size={48} color="var(--accent-red)" />
+          </div>
           <h2>Dashboard Error</h2>
           <p className="text-secondary">{error}</p>
           <div className="flex gap-md justify-center" style={{ marginTop: 'var(--spacing-lg)' }}>
@@ -135,13 +138,13 @@ const DashboardPage: React.FC = () => {
               className="btn btn-primary"
               onClick={refreshData}
             >
-              🔄 Try Again
+              <DeviantIcon name="refresh" size={16} /> Try Again
             </button>
             <button 
               className="btn btn-secondary"
               onClick={() => window.location.reload()}
             >
-              🔃 Reload Page
+              <DeviantIcon name="refresh" size={16} /> Reload Page
             </button>
           </div>
         </div>
@@ -162,7 +165,7 @@ const DashboardPage: React.FC = () => {
               disabled={loading}
               title="Refresh dashboard data"
             >
-              {loading ? '🔄' : '🔄'}
+              <DeviantIcon name="refresh" size={16} />
             </button>
           </div>
           <p className="text-muted" style={{ fontSize: '0.75rem', margin: 0 }}>
@@ -176,7 +179,7 @@ const DashboardPage: React.FC = () => {
         <StatCard
           title="Total Users"
           value={stats?.totalUsers || 0}
-          icon="👥"
+          icon="users"
           change={{
             value: '+12%',
             type: 'positive'
@@ -186,7 +189,7 @@ const DashboardPage: React.FC = () => {
         <StatCard
           title="Active Today"
           value={stats?.activeUsers || 0}
-          icon="⚡"
+          icon="lightning"
           change={{
             value: '+8%',
             type: 'positive'
@@ -196,7 +199,7 @@ const DashboardPage: React.FC = () => {
         <StatCard
           title="Messages"
           value={stats?.messagesToday || 0}
-          icon="💬"
+          icon="message"
           change={{
             value: '+25%',
             type: 'positive'
@@ -206,7 +209,7 @@ const DashboardPage: React.FC = () => {
         <StatCard
           title="Credits"
           value={stats?.totalCredits?.toLocaleString() || 0}
-          icon="💎"
+          icon="diamond"
           change={{
             value: '-3%',
             type: 'negative'
@@ -216,7 +219,7 @@ const DashboardPage: React.FC = () => {
         <StatCard
           title="Revenue"
           value={`$${stats?.estimatedRevenue || 0}`}
-          icon="💰"
+          icon="money"
           change={{
             value: '+18%',
             type: 'positive'
@@ -226,7 +229,7 @@ const DashboardPage: React.FC = () => {
         <StatCard
           title="Transactions"
           value={stats?.monthlyPayments || 0}
-          icon="💳"
+          icon="creditCard"
           change={{
             value: '+6%',
             type: 'positive'
