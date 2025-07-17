@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     BOT_TOKEN: str
     DATABASE_URL: str
     ADMIN_CHAT_ID: int
+    RAILWAY_STATIC_URL: str # The public URL of your Railway service
+    TELEGRAM_SECRET_TOKEN: str # A random secret string for webhook security
 
     # --- Optional & Defaulted Configuration ---
     ADMIN_GROUP_ID: Optional[int] = None
