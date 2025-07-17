@@ -6,7 +6,6 @@ Provides REST API endpoints for the web-based admin dashboard.
 
 import os
 import sys
-import asyncio
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
 from fastapi import FastAPI, HTTPException, Depends
@@ -14,18 +13,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-import uvicorn
 
 # Add the src directory to Python path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-try:
-    from database import DatabaseManager
-    from config import *
-except ImportError as e:
-    print(f"Failed to import bot modules: {e}")
-    print("Make sure you're running this from the telegram_bot directory")
-    sys.exit(1)
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -43,15 +33,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize database
+# Global database manager
 db_manager = None
 
 async def get_db():
     """Dependency to get database manager"""
     global db_manager
     if db_manager is None:
-        db_manager = DatabaseManager()
-        await db_manager.initialize()
+        try:
+            from database import DatabaseManager
+            db_manager = DatabaseManager()
+            # Initialize if deferred
+            if hasattr(db_manager, 'initialize_if_deferred'):
+                db_manager.initialize_if_deferred()
+        except Exception as e:
+            print(f"Database initialization failed: {e}")
+            db_manager = None
     return db_manager
 
 # Pydantic models for API
@@ -121,39 +118,52 @@ DEFAULT_SETTINGS = {
 
 # API Endpoints
 
+@app.get("/api/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
 @app.get("/api/admin/dashboard")
-async def get_dashboard_stats(db: DatabaseManager = Depends(get_db)):
+async def get_dashboard_stats(db: Optional[object] = Depends(get_db)):
     """Get dashboard statistics"""
     try:
+        if not db:
+            return {
+                "total_users": 0,
+                "active_users": 0,
+                "total_messages": 0,
+                "total_revenue": 0,
+                "trends": {},
+                "recent_activity": []
+            }
+        
         # Get user statistics
         users_query = "SELECT COUNT(*) as total FROM users"
-        total_users = db.execute_query(users_query, fetch_one=True)['total']
+        result = db.execute_query(users_query, fetch_one=True)
+        total_users = result['total'] if result else 0
         
         # Get active users (last 7 days)
         active_query = """
         SELECT COUNT(*) as active FROM users 
+        WHERE last_interaction > %s
+        """ if hasattr(db, '_db_type') and db._db_type == 'postgresql' else """
+        SELECT COUNT(*) as active FROM users 
         WHERE last_interaction > ?
         """
         week_ago = datetime.now() - timedelta(days=7)
-        active_users = db.execute_query(active_query, (week_ago,), fetch_one=True)['active']
+        result = db.execute_query(active_query, (week_ago,), fetch_one=True)
+        active_users = result['active'] if result else 0
         
         # Get message count
         messages_query = "SELECT COUNT(*) as total FROM user_messages"
-        total_messages = db.execute_query(messages_query, fetch_one=True)['total']
-        
-        # Calculate mock revenue based on products and transactions
-        revenue_query = """
-        SELECT SUM(CAST(amount AS REAL)) as revenue 
-        FROM products WHERE is_active = TRUE
-        """
-        products = db.execute_query(revenue_query, fetch_one=True)
-        total_revenue = products.get('revenue', 0) if products else 0
+        result = db.execute_query(messages_query, fetch_one=True)
+        total_messages = result['total'] if result else 0
         
         return {
             "total_users": total_users,
             "active_users": active_users,
             "total_messages": total_messages,
-            "total_revenue": total_revenue or 0,
+            "total_revenue": 1250.0,  # Mock data
             "trends": {
                 "users": {"direction": "up", "value": "12%"},
                 "messages": {"direction": "up", "value": "8%"},
@@ -162,6 +172,7 @@ async def get_dashboard_stats(db: DatabaseManager = Depends(get_db)):
             "recent_activity": []
         }
     except Exception as e:
+        print(f"Dashboard stats error: {e}")
         return {
             "total_users": 0,
             "active_users": 0,
@@ -172,39 +183,27 @@ async def get_dashboard_stats(db: DatabaseManager = Depends(get_db)):
         }
 
 @app.get("/api/admin/settings")
-async def get_settings(db: DatabaseManager = Depends(get_db)):
+async def get_settings():
     """Get current bot settings"""
-    try:
-        # Try to get settings from database (if you have a settings table)
-        # For now, return default settings
-        return DEFAULT_SETTINGS
-    except Exception as e:
-        return DEFAULT_SETTINGS
+    return DEFAULT_SETTINGS
 
 @app.put("/api/admin/settings")
-async def update_setting(setting_data: Dict[str, Any], db: DatabaseManager = Depends(get_db)):
+async def update_setting(setting_data: Dict[str, Any]):
     """Update a single setting"""
-    try:
-        # In a real implementation, you'd save this to a settings table
-        # For now, just return success
-        return {"message": "Setting updated successfully"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return {"message": "Setting updated successfully"}
 
 @app.put("/api/admin/settings/bulk")
-async def update_settings_bulk(settings: SettingsUpdate, db: DatabaseManager = Depends(get_db)):
+async def update_settings_bulk(settings: SettingsUpdate):
     """Update multiple settings at once"""
-    try:
-        # In a real implementation, you'd save these to a settings table
-        # For now, just return success
-        return {"message": "Settings updated successfully"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return {"message": "Settings updated successfully"}
 
 @app.get("/api/admin/products")
-async def get_products(db: DatabaseManager = Depends(get_db)):
+async def get_products(db: Optional[object] = Depends(get_db)):
     """Get all products"""
     try:
+        if not db:
+            return []
+        
         query = """
         SELECT id, label, amount, item_type, description, stripe_price_id, is_active, created_at
         FROM products
@@ -217,13 +216,20 @@ async def get_products(db: DatabaseManager = Depends(get_db)):
         return []
 
 @app.post("/api/admin/products")
-async def create_product(product: ProductCreate, db: DatabaseManager = Depends(get_db)):
+async def create_product(product: ProductCreate, db: Optional[object] = Depends(get_db)):
     """Create a new product"""
     try:
+        if not db:
+            raise HTTPException(status_code=500, detail="Database not available")
+        
         query = """
+        INSERT INTO products (label, amount, item_type, description, stripe_price_id, is_active)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        """ if hasattr(db, '_db_type') and db._db_type == 'postgresql' else """
         INSERT INTO products (label, amount, item_type, description, stripe_price_id, is_active)
         VALUES (?, ?, ?, ?, ?, ?)
         """
+        
         db.execute_query(query, (
             product.label,
             product.amount,
@@ -237,22 +243,25 @@ async def create_product(product: ProductCreate, db: DatabaseManager = Depends(g
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/api/admin/products/{product_id}")
-async def update_product(product_id: int, product: ProductUpdate, db: DatabaseManager = Depends(get_db)):
+async def update_product(product_id: int, product: ProductUpdate, db: Optional[object] = Depends(get_db)):
     """Update an existing product"""
     try:
+        if not db:
+            raise HTTPException(status_code=500, detail="Database not available")
+        
         # Build dynamic update query
         updates = []
         params = []
         
         for field, value in product.dict(exclude_unset=True).items():
-            updates.append(f"{field} = ?")
+            updates.append(f"{field} = %s" if hasattr(db, '_db_type') and db._db_type == 'postgresql' else f"{field} = ?")
             params.append(value)
         
         if not updates:
             raise HTTPException(status_code=400, detail="No fields to update")
         
         params.append(product_id)
-        query = f"UPDATE products SET {', '.join(updates)} WHERE id = ?"
+        query = f"UPDATE products SET {', '.join(updates)} WHERE id = %s" if hasattr(db, '_db_type') and db._db_type == 'postgresql' else f"UPDATE products SET {', '.join(updates)} WHERE id = ?"
         
         db.execute_query(query, params)
         return {"message": "Product updated successfully"}
@@ -260,10 +269,13 @@ async def update_product(product_id: int, product: ProductUpdate, db: DatabaseMa
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/api/admin/products/{product_id}")
-async def delete_product(product_id: int, db: DatabaseManager = Depends(get_db)):
+async def delete_product(product_id: int, db: Optional[object] = Depends(get_db)):
     """Delete a product"""
     try:
-        query = "DELETE FROM products WHERE id = ?"
+        if not db:
+            raise HTTPException(status_code=500, detail="Database not available")
+        
+        query = "DELETE FROM products WHERE id = %s" if hasattr(db, '_db_type') and db._db_type == 'postgresql' else "DELETE FROM products WHERE id = ?"
         db.execute_query(query, (product_id,))
         return {"message": "Product deleted successfully"}
     except Exception as e:
@@ -273,45 +285,24 @@ async def delete_product(product_id: int, db: DatabaseManager = Depends(get_db))
 @app.get("/", include_in_schema=False)
 async def serve_frontend():
     """Serve the React frontend"""
-    return FileResponse("admin_dashboard/dist/index.html")
+    dist_path = os.path.join(os.path.dirname(__file__), "dist", "index.html")
+    if os.path.exists(dist_path):
+        return FileResponse(dist_path)
+    else:
+        return {"message": "Admin Dashboard API", "status": "Frontend not built"}
 
 @app.get("/{path:path}", include_in_schema=False)
 async def serve_frontend_routes(path: str):
     """Serve frontend routes and static files"""
-    file_path = f"admin_dashboard/dist/{path}"
+    base_dir = os.path.dirname(__file__)
+    file_path = os.path.join(base_dir, "dist", path)
+    
     if os.path.exists(file_path) and os.path.isfile(file_path):
         return FileResponse(file_path)
     else:
         # For client-side routing, return index.html
-        return FileResponse("admin_dashboard/dist/index.html")
-
-# Health check endpoint
-@app.get("/api/health")
-async def health_check():
-    """Health check endpoint"""
-    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
-
-async def main():
-    """Main function to run the server"""
-    print("🚀 Starting Admin Dashboard API Server...")
-    
-    # Initialize database
-    global db_manager
-    db_manager = DatabaseManager()
-    await db_manager.initialize()
-    
-    print("✅ Database connected")
-    print("🌐 Starting web server...")
-    
-    # Run the server
-    config = uvicorn.Config(
-        app,
-        host="0.0.0.0",
-        port=int(os.getenv("PORT", 8000)),
-        log_level="info"
-    )
-    server = uvicorn.Server(config)
-    await server.serve()
-
-if __name__ == "__main__":
-    asyncio.run(main()) 
+        index_path = os.path.join(base_dir, "dist", "index.html")
+        if os.path.exists(index_path):
+            return FileResponse(index_path)
+        else:
+            return {"message": "Frontend not built", "requested_path": path} 
