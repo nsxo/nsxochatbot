@@ -312,6 +312,41 @@ Ready to get started? Send your first message! 👇"""
         await start(update, context)
         return
     
+    elif callback_data == "back_to_buy":
+        # Return to buy menu
+        await buy_command(update, context)
+        return
+    
+    elif callback_data.startswith("category_"):
+        # Handle package categories
+        category = callback_data.split("_")[1]
+        await handle_package_category(update, context, category)
+        return
+    
+    elif callback_data == "quick_buy_menu":
+        await show_quick_buy_menu(update, context)
+        return
+    
+    elif callback_data == "special_offers":
+        await show_special_offers(update, context)
+        return
+    
+    elif callback_data == "compare_plans":
+        await show_compare_plans(update, context)
+        return
+    
+    elif callback_data == "value_calculator":
+        await show_value_calculator(update, context)
+        return
+    
+    elif callback_data == "help_choose":
+        await show_package_advisor(update, context)
+        return
+    
+    elif callback_data == "setup_autorecharge":
+        await show_autorecharge_setup(update, context)
+        return
+    
     elif callback_data == "toggle_autorecharge":
         # Toggle auto-recharge setting
         current_settings = database.get_user_auto_recharge_settings(user_id)
@@ -507,8 +542,495 @@ Use `/start` to return to the main menu."""
     await safe_reply(update, help_text, reply_markup=InlineKeyboardMarkup(keyboard))
 
 async def buy_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Alias for /start."""
-    await start(update, context)
+    """Enhanced buy command with comprehensive credit store and recommendations."""
+    user_id = update.effective_user.id
+    user_credits = database.get_user_credits_optimized(user_id)
+    user_tier = database.get_user_tier(user_id)
+    products = database.get_active_products()
+    
+    if not products:
+        await safe_reply(update, "❌ No credit packages are available at the moment. Please contact support.")
+        return
+    
+    # Get tier info for recommendations
+    tier_emoji = "🏆" if user_tier == "VIP" else "⭐" if user_tier == "Regular" else "🆕"
+    
+    # Package recommendations based on current credits and usage
+    recommendation = get_package_recommendation(user_credits, user_tier)
+    
+    # Enhanced header
+    header = f"""💳 **Credit Store**
+
+{format_balance_display(user_credits)}
+{tier_emoji} **Current Tier:** {user_tier}
+
+{recommendation}
+
+🛒 **Available Packages:**"""
+    
+    # Create enhanced keyboard with package categories
+    keyboard = []
+    
+    # Organize products by size
+    starter_products = [p for p in products if p['amount'] <= 25]
+    regular_products = [p for p in products if 26 <= p['amount'] <= 100]
+    premium_products = [p for p in products if p['amount'] > 100]
+    
+    # Add starter packages
+    if starter_products:
+        keyboard.append([InlineKeyboardButton("🚀 Starter Packages", callback_data="category_starter")])
+    
+    # Add regular packages  
+    if regular_products:
+        keyboard.append([InlineKeyboardButton("💼 Regular Packages", callback_data="category_regular")])
+    
+    # Add premium packages
+    if premium_products:
+        keyboard.append([InlineKeyboardButton("🏆 Premium Packages", callback_data="category_premium")])
+    
+    # Quick buy buttons for popular packages
+    keyboard.append([InlineKeyboardButton("⚡ Quick Buy", callback_data="quick_buy_menu")])
+    
+    # Special offers and bundles
+    keyboard.append([
+        InlineKeyboardButton("🎁 Special Offers", callback_data="special_offers"),
+        InlineKeyboardButton("📊 Compare Plans", callback_data="compare_plans")
+    ])
+    
+    # Utility buttons
+    keyboard.append([
+        InlineKeyboardButton("💰 Value Calculator", callback_data="value_calculator"),
+        InlineKeyboardButton("❓ Help Me Choose", callback_data="help_choose")
+    ])
+    
+    # Navigation
+    keyboard.append([
+        InlineKeyboardButton("⚙️ Auto-Recharge", callback_data="setup_autorecharge"),
+        InlineKeyboardButton("🔙 Main Menu", callback_data="back_to_start")
+    ])
+    
+    await safe_reply(update, header, reply_markup=InlineKeyboardMarkup(keyboard))
+
+def get_package_recommendation(user_credits: int, user_tier: str) -> str:
+    """Get personalized package recommendation based on user profile."""
+    if user_credits <= 5:
+        return "🔥 **Recommended:** Start with our Basic Pack to get messaging!"
+    elif user_credits <= 15:
+        return "💡 **Recommended:** Premium Pack gives you the best value!"
+    elif user_credits <= 30:
+        return "⭐ **Recommended:** Power Pack - perfect for regular users!"
+    elif user_tier == "VIP":
+        return "🏆 **VIP Status:** Consider our Enterprise Pack for maximum value!"
+    else:
+        return "🌟 **Popular Choice:** Most users love our Premium Pack!"
+
+async def handle_package_category(update: Update, context: ContextTypes.DEFAULT_TYPE, category: str):
+    """Handle package category selection."""
+    query = update.callback_query
+    await query.answer()
+    
+    products = database.get_active_products()
+    user_credits = database.get_user_credits_optimized(query.from_user.id)
+    
+    # Filter products by category
+    if category == "starter":
+        filtered_products = [p for p in products if p['amount'] <= 25]
+        title = "🚀 **Starter Packages**"
+        description = "Perfect for new users and light messaging"
+    elif category == "regular":
+        filtered_products = [p for p in products if 26 <= p['amount'] <= 100]
+        title = "💼 **Regular Packages**"
+        description = "Great value for regular users"
+    elif category == "premium":
+        filtered_products = [p for p in products if p['amount'] > 100]
+        title = "🏆 **Premium Packages**"
+        description = "Best value with bonus credits and VIP benefits"
+    else:
+        filtered_products = products
+        title = "💳 **All Packages**"
+        description = "Choose the perfect package for your needs"
+    
+    if not filtered_products:
+        await query.edit_message_text("❌ No packages available in this category.")
+        return
+    
+    # Build package display
+    message = f"{title}\n\n{description}\n\n"
+    keyboard = []
+    
+    for product in filtered_products:
+        # Calculate value proposition
+        value_text = get_value_text(product['amount'])
+        
+        # Create package display
+        package_text = f"**{product['label']}**\n{product['description']}\n{value_text}"
+        message += f"• {package_text}\n\n"
+        
+        # Add buy button
+        keyboard.append([InlineKeyboardButton(
+            f"{product['label']} - {product['amount']} credits",
+            callback_data=f"buy_{product['id']}"
+        )])
+    
+    # Add navigation
+    keyboard.append([
+        InlineKeyboardButton("🔙 Back to Store", callback_data="back_to_buy"),
+        InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_start")
+    ])
+    
+    await query.edit_message_text(message, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+def get_value_text(credits: int) -> str:
+    """Get value proposition text for credit amount."""
+    if credits >= 500:
+        return "🌟 40% bonus • Enterprise support • Priority processing"
+    elif credits >= 200:
+        return "💎 25% bonus credits • VIP status • Premium support"
+    elif credits >= 100:
+        return "🏆 Best value • Reach VIP tier • 20% message discount"
+    elif credits >= 50:
+        return "⭐ Great value • Reach Regular tier • 10% discount"
+    elif credits >= 25:
+        return "💼 Good value • Perfect for regular users"
+    else:
+        return "🚀 Perfect starter amount"
+
+async def show_quick_buy_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show quick buy menu with most popular packages."""
+    query = update.callback_query
+    await query.answer()
+    
+    products = database.get_active_products()
+    user_tier = database.get_user_tier(query.from_user.id)
+    
+    # Select most popular packages
+    popular_packages = []
+    for amount in [25, 50, 100]:
+        package = next((p for p in products if p['amount'] == amount), None)
+        if package:
+            popular_packages.append(package)
+    
+    message = """⚡ **Quick Buy - Popular Packages**
+
+Most chosen by our users:
+
+"""
+    
+    keyboard = []
+    for i, product in enumerate(popular_packages):
+        # Add popularity indicator
+        popularity = ["🥉 Bronze Choice", "🥈 Silver Choice", "🥇 Gold Choice"][i] if i < 3 else "⭐ Popular"
+        message += f"**{product['label']}** - {popularity}\n{product['description']}\n\n"
+        
+        keyboard.append([InlineKeyboardButton(
+            f"⚡ {product['label']} - ${product['amount']//10}.{product['amount']%10}0",
+            callback_data=f"buy_{product['id']}"
+        )])
+    
+    keyboard.append([InlineKeyboardButton("🔙 Back to Store", callback_data="back_to_buy")])
+    
+    await query.edit_message_text(message, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+async def show_special_offers(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show special offers and promotions."""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    user_stats = database.get_user_stats_individual(user_id)
+    is_new_user = user_stats.get('total_messages', 0) < 5
+    
+    offers_text = "🎁 **Special Offers**\n\n"
+    keyboard = []
+    
+    if is_new_user:
+        offers_text += """🌟 **New User Special!**
+• 50% bonus on your first Premium Pack purchase
+• Instant VIP tier upgrade
+• Priority support access
+
+"""
+        keyboard.append([InlineKeyboardButton("🌟 Claim New User Bonus", callback_data="new_user_bonus")])
+    
+    offers_text += """🔥 **Limited Time Offers:**
+
+💎 **Bundle Deal:** Buy 2 Premium Packs, get 1 Basic Pack FREE!
+🏆 **VIP Fast Track:** Power Pack + instant VIP tier upgrade
+⚡ **Flash Sale:** 25% extra credits on Mega Pack
+🎯 **Loyalty Bonus:** 15% more credits for returning customers
+
+💰 **Best Value Guarantee:**
+If you find a better deal, we'll match it plus 10% extra!
+
+"""
+    
+    keyboard.extend([
+        [InlineKeyboardButton("💎 Bundle Deal", callback_data="bundle_deal")],
+        [InlineKeyboardButton("🏆 VIP Fast Track", callback_data="vip_fasttrack")],
+        [InlineKeyboardButton("⚡ Flash Sale", callback_data="flash_sale")],
+        [InlineKeyboardButton("🔙 Back to Store", callback_data="back_to_buy")]
+    ])
+    
+    await query.edit_message_text(offers_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+async def show_compare_plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show detailed plan comparison."""
+    query = update.callback_query
+    await query.answer()
+    
+    compare_text = """📊 **Package Comparison**
+
+**🚀 Starter Pack (10 credits)**
+• Perfect for: First-time users
+• Message capacity: ~10 messages
+• Best for: Testing the service
+• Value: Basic
+
+**💼 Basic Pack (25 credits)**
+• Perfect for: Light users
+• Message capacity: ~25 messages  
+• Best for: Occasional messaging
+• Value: Good • 2.5x starter value
+
+**⭐ Premium Pack (50 credits)**
+• Perfect for: Regular users
+• Message capacity: ~50 messages
+• Best for: Daily communication
+• Value: Great • Tier progression
+
+**🏆 Power Pack (100 credits)**
+• Perfect for: Heavy users
+• Message capacity: ~100 messages
+• Best for: VIP tier unlock
+• Value: Excellent • 20% discounts
+
+**💎 Mega Pack (200 credits)**
+• Perfect for: Power users
+• Message capacity: ~250 messages
+• Best for: Bulk messaging
+• Value: Outstanding • 25% bonus
+
+**🌟 Enterprise (500 credits)**
+• Perfect for: Business users
+• Message capacity: ~700 messages
+• Best for: Professional use
+• Value: Premium • 40% bonus
+
+💡 **Recommendation:** Start with Premium Pack for best balance of value and features!"""
+    
+    keyboard = [
+        [InlineKeyboardButton("💡 Get Recommendation", callback_data="help_choose")],
+        [InlineKeyboardButton("🔙 Back to Store", callback_data="back_to_buy")]
+    ]
+    
+    await query.edit_message_text(compare_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+async def show_value_calculator(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show value calculator to help users choose packages."""
+    query = update.callback_query
+    await query.answer()
+    
+    calculator_text = """💰 **Value Calculator**
+
+**How much do you message?**
+
+📱 **Light User (1-2 messages/day)**
+• Monthly need: ~30-60 credits
+• Recommended: Basic or Premium Pack
+• Best value: Premium Pack (lasts longer)
+
+💬 **Regular User (3-5 messages/day)**
+• Monthly need: ~90-150 credits  
+• Recommended: Premium or Power Pack
+• Best value: Power Pack (VIP benefits)
+
+🔥 **Heavy User (6+ messages/day)**
+• Monthly need: 180+ credits
+• Recommended: Mega or Enterprise Pack
+• Best value: Enterprise Pack (40% bonus)
+
+💼 **Business User (Professional)**
+• Monthly need: 300+ credits
+• Recommended: Enterprise Pack
+• Best value: Enterprise (priority support)
+
+**💡 Pro Tips:**
+• VIP tier (100+ credits) = 20% discount on all messages
+• Regular tier (50+ credits) = 10% discount
+• Larger packages = better value per credit
+• Auto-recharge = never run out of credits
+
+**Calculate Your Savings:**
+VIP users save ~2 credits per 10 messages
+That's 20% more messaging for the same price!"""
+    
+    keyboard = [
+        [InlineKeyboardButton("💡 Get Personal Recommendation", callback_data="help_choose")],
+        [InlineKeyboardButton("🔙 Back to Store", callback_data="back_to_buy")]
+    ]
+    
+    await query.edit_message_text(calculator_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+async def show_package_advisor(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show personalized package advisor."""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    user_credits = database.get_user_credits_optimized(user_id)
+    user_tier = database.get_user_tier(user_id)
+    user_stats = database.get_user_stats_individual(user_id)
+    
+    # Analyze user profile
+    total_messages = user_stats.get('total_messages', 0)
+    is_new_user = total_messages < 5
+    
+    advisor_text = f"""🤖 **Personal Package Advisor**
+
+**Your Profile Analysis:**
+• Current Credits: {user_credits}
+• Current Tier: {user_tier}
+• Messages Sent: {total_messages}
+• Usage Pattern: {"New User" if is_new_user else "Regular User"}
+
+"""
+    
+    # Generate personalized recommendation
+    if is_new_user:
+        advisor_text += """🌟 **New User Recommendation:**
+
+Since you're new to our service, I recommend starting with the **Premium Pack (50 credits)**:
+
+✅ **Why Premium Pack?**
+• Perfect amount to try all features
+• Reaches Regular tier (10% discount)
+• Great value for money
+• Lasts 2-3 weeks for most users
+
+🎁 **Bonus:** New users get extra support and priority responses!"""
+        
+        recommended_product = next((p for p in database.get_active_products() if p['amount'] == 50), None)
+        
+    elif user_tier == "New" and user_credits < 30:
+        advisor_text += """📈 **Tier Upgrade Recommendation:**
+
+You're close to Regular tier! I recommend the **Power Pack (100 credits)**:
+
+✅ **Why Power Pack?**
+• Instant VIP tier upgrade (20% discount)
+• Best long-term value
+• Never worry about running out
+• Premium support included
+
+💰 **Value:** 20% discount means 120 effective messages for 100 credits!"""
+        
+        recommended_product = next((p for p in database.get_active_products() if p['amount'] == 100), None)
+        
+    elif user_tier == "VIP":
+        advisor_text += """🏆 **VIP User Recommendation:**
+
+As a VIP user, maximize your benefits with the **Enterprise Pack (500 credits)**:
+
+✅ **Why Enterprise Pack?**
+• 40% bonus credits (700 effective credits)
+• Priority processing
+• Enterprise support
+• Best value per credit
+
+💎 **VIP Exclusive:** Enterprise users get access to premium features!"""
+        
+        recommended_product = next((p for p in database.get_active_products() if p['amount'] == 500), None)
+        
+    else:
+        advisor_text += """⭐ **Balanced Recommendation:**
+
+Based on your usage, the **Premium Pack (50 credits)** is perfect:
+
+✅ **Why Premium Pack?**
+• Most popular choice
+• Good for regular messaging
+• Maintains your tier status
+• Excellent value proposition
+
+💡 **Alternative:** Consider Power Pack if you message frequently!"""
+        
+        recommended_product = next((p for p in database.get_active_products() if p['amount'] == 50), None)
+    
+    keyboard = []
+    if recommended_product:
+        keyboard.append([InlineKeyboardButton(
+            f"✅ Buy {recommended_product['label']} (Recommended)",
+            callback_data=f"buy_{recommended_product['id']}"
+        )])
+    
+    keyboard.extend([
+        [InlineKeyboardButton("📊 Compare All Plans", callback_data="compare_plans")],
+        [InlineKeyboardButton("💰 Value Calculator", callback_data="value_calculator")],
+        [InlineKeyboardButton("🔙 Back to Store", callback_data="back_to_buy")]
+    ])
+    
+    await query.edit_message_text(advisor_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+async def show_autorecharge_setup(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show auto-recharge setup options."""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    current_settings = database.get_user_auto_recharge_settings(user_id)
+    is_enabled = current_settings.get('enabled', False) if current_settings else False
+    
+    setup_text = f"""⚙️ **Auto-Recharge Setup**
+
+Never run out of credits again! Auto-recharge automatically buys more credits when you're running low.
+
+**Current Status:** {"✅ Enabled" if is_enabled else "❌ Disabled"}
+
+"""
+    
+    if is_enabled:
+        amount = current_settings.get('amount', 10)
+        threshold = current_settings.get('threshold', 5)
+        setup_text += f"""**Your Settings:**
+• Recharge Amount: {amount} credits
+• Trigger When: Balance drops to {threshold} credits
+• Payment Method: Your saved card
+
+🔄 **How it works:**
+1. Your balance drops to {threshold} credits
+2. We automatically charge your card
+3. {amount} credits added instantly
+4. You keep messaging without interruption!"""
+        
+        keyboard = [
+            [InlineKeyboardButton("❌ Disable Auto-Recharge", callback_data="toggle_autorecharge")],
+            [InlineKeyboardButton("⚙️ Modify Settings", callback_data="modify_autorecharge")],
+            [InlineKeyboardButton("🔙 Back to Store", callback_data="back_to_buy")]
+        ]
+    else:
+        setup_text += """🌟 **Benefits of Auto-Recharge:**
+• Never miss important conversations
+• Automatic credit top-ups
+• Secure payment processing
+• Customizable amounts and thresholds
+• Cancel anytime
+
+**Recommended Settings:**
+• Recharge: 50 credits (Premium Pack)
+• Trigger: When balance drops to 5 credits
+• Perfect for regular users!
+
+⚡ **Quick Setup Options:**"""
+        
+        keyboard = [
+            [InlineKeyboardButton("⚡ Quick Setup (50 credits @ 5)", callback_data="autorecharge_quick")],
+            [InlineKeyboardButton("💼 Basic Setup (25 credits @ 3)", callback_data="autorecharge_basic")],
+            [InlineKeyboardButton("🏆 VIP Setup (100 credits @ 10)", callback_data="autorecharge_vip")],
+            [InlineKeyboardButton("⚙️ Custom Setup", callback_data="autorecharge_custom")],
+            [InlineKeyboardButton("🔙 Back to Store", callback_data="back_to_buy")]
+        ]
+    
+    await query.edit_message_text(setup_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
 
 async def billing_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Provides a link to the Stripe billing portal to manage payment methods."""

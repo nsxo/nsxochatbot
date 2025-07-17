@@ -141,12 +141,14 @@ def get_default_settings() -> List[Tuple[str, str]]:
     ]
 
 def get_default_products() -> List[Tuple]:
-    """Get default products to insert into the database."""
+    """Get enhanced default products with better value propositions."""
     return [
-        ('prod_starter', 'price_starter', '🚀 Starter Pack (10 Credits)', 10, 'credits', '10 message credits', True),
-        ('prod_basic', 'price_basic', '💼 Basic Pack (25 Credits)', 25, 'credits', '25 message credits', True),
-        ('prod_premium', 'price_premium', '⭐ Premium Pack (50 Credits)', 50, 'credits', '50 message credits', True),
-        ('prod_unlimited', 'price_unlimited', '🎯 Power Pack (100 Credits)', 100, 'credits', '100 message credits', True),
+        ('prod_starter', 'price_starter', '🚀 Starter Pack', 10, 'credits', 'Perfect for trying out the service • 10 credits', True),
+        ('prod_basic', 'price_basic', '💼 Basic Pack', 25, 'credits', 'Great for regular users • 25 credits • 2.5x value', True),
+        ('prod_premium', 'price_premium', '⭐ Premium Pack', 50, 'credits', 'Most popular choice • 50 credits • 5x value', True),
+        ('prod_power', 'price_power', '🏆 Power Pack', 100, 'credits', 'Best value for heavy users • 100 credits • 10x value', True),
+        ('prod_mega', 'price_mega', '💎 Mega Pack', 200, 'credits', 'Ultimate package • 200 credits • 25% bonus • VIP status', True),
+        ('prod_enterprise', 'price_enterprise', '🌟 Enterprise Pack', 500, 'credits', 'For power users • 500 credits • 40% bonus • VIP perks', True),
     ]
 
 def initialize_default_data():
