@@ -28,7 +28,8 @@ def get_schema_queries() -> List[str]:
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             is_banned BOOLEAN DEFAULT FALSE,
-            ban_reason TEXT
+            ban_reason TEXT,
+            last_low_balance_notification TIMESTAMP
         )
         """,
         """

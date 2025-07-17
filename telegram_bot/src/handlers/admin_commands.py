@@ -496,6 +496,54 @@ async def process_unban_user(update: Update, context: ContextTypes.DEFAULT_TYPE)
     
     return await user_management_handler(update, context)
 
+async def gift_credits_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Starts the process of gifting credits to a user."""
+    await safe_reply(update, "🎁 **Gift Credits**\n\nPlease send the user ID to gift credits to:")
+    context.user_data['gift_credits'] = {}
+    return ADD_CREDITS_USER
+
+async def gift_credits_get_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Gets the user ID for gifting credits."""
+    try:
+        user_id = int(update.message.text.strip())
+        user_info = database.get_user_info(user_id)
+        if not user_info:
+            await safe_reply(update, f"❌ User {user_id} not found.")
+            return await user_management_handler(update, context)
+        
+        context.user_data['gift_credits']['user_id'] = user_id
+        await safe_reply(update, f"✅ User found: @{user_info.get('username', user_id)}\n\nPlease send the amount of credits to gift:")
+        return ADD_CREDITS_AMOUNT
+
+    except ValueError:
+        await safe_reply(update, "❌ Invalid user ID. Please send a valid number.")
+        return await user_management_handler(update, context)
+
+async def process_gift_credits(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Processes the credit gifting."""
+    try:
+        amount = int(update.message.text.strip())
+        user_id = context.user_data['gift_credits']['user_id']
+        
+        database.add_user_credits(user_id, amount)
+        
+        await safe_reply(update, f"✅ Successfully gifted {amount} credits to user {user_id}.")
+        
+        # Notify the user
+        try:
+            await context.bot.send_message(
+                chat_id=user_id,
+                text=f"🎉 You have received a gift of {amount} credits from the admin!"
+            )
+        except Exception as e:
+            logger.warning(f"Could not notify user {user_id} about credit gift: {e}")
+
+    except (ValueError, KeyError):
+        await safe_reply(update, "❌ Invalid amount or user data. Please try again.")
+    
+    del context.user_data['gift_credits']
+    return await user_management_handler(update, context)
+
 # ========================= Navigation Handlers =========================
 
 async def back_to_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -557,6 +605,7 @@ def get_admin_conversation_handler() -> ConversationHandler:
             USER_MANAGEMENT_MENU: [
                 CallbackQueryHandler(ban_user_start, pattern='^ban_user$'),
                 CallbackQueryHandler(unban_user_start, pattern='^unban_user$'),
+                CallbackQueryHandler(gift_credits_start, pattern='^gift_credits$'),
                 CallbackQueryHandler(placeholder_handler, pattern='^all_users$'),
                 CallbackQueryHandler(placeholder_handler, pattern='^banned_users$'),
                 CallbackQueryHandler(placeholder_handler, pattern='^vip_users$'),
@@ -571,6 +620,12 @@ def get_admin_conversation_handler() -> ConversationHandler:
             ],
             UNBAN_USER_INPUT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, process_unban_user)
+            ],
+            ADD_CREDITS_USER: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, gift_credits_get_user)
+            ],
+            ADD_CREDITS_AMOUNT: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, process_gift_credits)
             ],
             STATUS_MENU: [
                 CallbackQueryHandler(lambda u, c: set_admin_status(u, c, 'online', 'Available for support'), pattern='^status_online$'),

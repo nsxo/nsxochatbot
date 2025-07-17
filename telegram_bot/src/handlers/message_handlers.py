@@ -53,19 +53,43 @@ async def master_message_handler(update: Update, context: ContextTypes.DEFAULT_T
             await safe_reply(update, "🚫 You are banned from using this bot and cannot send messages.")
             return
         
-        # Simplified cost logic, can be expanded with database.get_setting
-        cost = 1 
+        # Get message type to determine cost
+        message_type = topic_manager.get_message_type(message)
+        
+        cost_mapping = {
+            'text': 'cost_text_message',
+            'photo': 'cost_photo_message',
+            'voice': 'cost_voice_message',
+            'video': 'cost_video_message',
+            'document': 'cost_document_message',
+            'sticker': 'cost_sticker_message'
+        }
+        
+        cost_setting_key = cost_mapping.get(message_type, 'cost_text_message')
+        cost = int(database.get_setting(cost_setting_key, '1'))
         
         # Decrement credits
         new_balance = database.decrement_user_credits_optimized(user_id, cost)
         
         if new_balance == -1:
             current_balance = database.get_user_credits_optimized(user_id)
-            await safe_reply(update, f"❌ Insufficient credits. You need {cost} credits but only have {current_balance}. Please /buy more.")
+            await safe_reply(update, f"❌ Insufficient credits. You need {cost} credits for a {message_type} message, but only have {current_balance}. Please /buy more.")
             return
+
+        # Check for low balance and notify user
+        low_balance_threshold = int(database.get_setting('low_credit_threshold', '5'))
+        if 0 < new_balance <= low_balance_threshold:
+            # Check if notification was sent recently to avoid spam
+            if database.can_send_low_balance_notification(user_id):
+                await context.bot.send_message(
+                    chat_id=user_id,
+                    text=f"⚠️ **Low Balance Warning**\nYou now have {new_balance} credits remaining. /buy more to continue.",
+                    parse_mode='Markdown'
+                )
+                database.update_low_balance_notification_status(user_id)
         
         # Try topic forwarding first (preferred method)
-        topic_handled = await topic_manager.handle_user_message_to_topic(context.bot, update, context)
+        topic_handled = await topic_manager.handle_user_message_to_topic(context.bot, update, context, cost)
         
         if not topic_handled:
             # Fallback to private chat forwarding

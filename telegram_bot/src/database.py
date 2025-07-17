@@ -9,6 +9,7 @@ import sqlite3
 from contextlib import contextmanager
 from typing import Optional, Any, Dict, List, Generator, Union
 import os
+from datetime import datetime, timedelta
 
 # Try to import psycopg2, fall back to sqlite3 if not available
 try:
@@ -1041,3 +1042,36 @@ def get_topic_statistics() -> Dict[str, int]:
             'active_topics': 0,
             'topic_enabled': False
         }
+
+def can_send_low_balance_notification(user_id: int) -> bool:
+    """Check if a low balance notification can be sent to the user."""
+    try:
+        query = """
+        SELECT last_low_balance_notification FROM users WHERE telegram_id = %s
+        """ if db_manager._db_type == 'postgresql' else """
+        SELECT last_low_balance_notification FROM users WHERE telegram_id = ?
+        """
+        result = db_manager.execute_query(query, (user_id,), fetch_one=True)
+        if result and result['last_low_balance_notification']:
+            # Check if the last notification was sent more than 24 hours ago
+            last_notification_time = result['last_low_balance_notification']
+            if isinstance(last_notification_time, str):
+                last_notification_time = datetime.fromisoformat(last_notification_time)
+            if datetime.now() - last_notification_time < timedelta(hours=24):
+                return False
+        return True
+    except Exception as e:
+        logger.error(f"Error checking low balance notification status for user {user_id}: {e}")
+        return True
+
+def update_low_balance_notification_status(user_id: int) -> None:
+    """Update the timestamp of the last low balance notification."""
+    try:
+        query = """
+        UPDATE users SET last_low_balance_notification = CURRENT_TIMESTAMP WHERE telegram_id = %s
+        """ if db_manager._db_type == 'postgresql' else """
+        UPDATE users SET last_low_balance_notification = datetime('now') WHERE telegram_id = ?
+        """
+        db_manager.execute_query(query, (user_id,))
+    except Exception as e:
+        logger.error(f"Error updating low balance notification status for user {user_id}: {e}")

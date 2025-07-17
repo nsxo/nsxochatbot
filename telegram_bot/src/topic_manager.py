@@ -130,7 +130,7 @@ Use admin commands for credit management
     except Exception as e:
         logger.error(f"Error sending enhanced user info card: {e}")
 
-async def handle_user_message_to_topic(bot: Bot, update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+async def handle_user_message_to_topic(bot: Bot, update: Update, context: ContextTypes.DEFAULT_TYPE, cost: int) -> bool:
     """Enhanced user message handling with all media types support."""
     try:
         user_id = update.effective_user.id
@@ -163,7 +163,7 @@ async def handle_user_message_to_topic(bot: Bot, update: Update, context: Contex
             # Enhanced header with message type and user info
             header = f"""💬 **New {message_type} message**
 From: @{update.effective_user.username or 'Unknown'} {tier_emoji} {tier_text} (ID: `{user_id}`)
-Credits: {user_credits} | Time: None
+Cost: {cost} credits | Balance: {user_credits} credits
 ──────────────────────────────────"""
             
             await bot.send_message(
