@@ -43,7 +43,7 @@ def format_balance_display(user_credits: int, max_credits: int = 100) -> str:
 @rate_limit(max_calls=20, window_seconds=60)
 @monitor_performance
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Enhanced start command with personalized welcome and feature showcase."""
+    """Enhanced start command with rich welcome experience including image and professional messaging."""
     user_id = update.effective_user.id
     username = update.effective_user.username or update.effective_user.first_name or "there"
     
@@ -63,93 +63,143 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     tier_emoji = "🏆" if user_tier == "VIP" else "⭐" if user_tier == "Regular" else "🆕"
     tier_discount = "20%" if user_tier == "VIP" else "10%" if user_tier == "Regular" else "0%"
     
+    # Create welcome image message for new users
+    if is_new_user:
+        # Send welcome image first (using a professional welcome image)
+        # You can replace this with your own custom image URL
+        welcome_image_url = "https://images.unsplash.com/photo-1557804506-669a67965ba0?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400&q=80"
+        
+        try:
+            # Send welcome image with caption
+            await update.message.reply_photo(
+                photo=welcome_image_url,
+                caption=f"""🎉 **Welcome to the Premium Messaging Experience!**
+
+Hi @{username}! You've just joined an exclusive service where you can directly communicate with our team through a professional credit-based system.
+
+✨ **What makes us special:**
+• Direct access to real human support
+• Professional response times
+• Secure payment processing
+• Tier-based benefits and discounts
+
+🎁 **New User Bonus:** We've added 5 welcome credits to get you started!
+
+Ready to explore? Tap the button below! 👇""",
+                parse_mode='Markdown'
+            )
+        except Exception as e:
+            logger.warning(f"Could not send welcome image: {e}")
+            # Fallback to text-only welcome for new users
+            pass
+    
     # Create personalized welcome message
     if is_new_user:
-        welcome_header = f"🎉 **Welcome to the Bot, @{username}!**\n\n"
+        welcome_header = f"🚀 **Get Started, @{username}!**\n\n"
         intro_text = (
-            "✨ You've joined an **exclusive messaging service** where you can:\n\n"
-            "💬 **Send Direct Messages** to our admin team\n"
-            "🔒 **Access Premium Content** with our locked content system\n"
-            "🎁 **Earn Tier Benefits** - get discounts as you use the service\n"
-            "⚡ **Quick Responses** from our professional support team\n\n"
+            "Welcome to your **Premium Messaging Dashboard**! Here's everything you need to know:\n\n"
+            "💬 **Send Messages**: Each message costs credits based on type\n"
+            "🎯 **Get Responses**: Our team provides professional, timely replies\n" 
+            "🏆 **Earn Benefits**: Use more → get better tier → save money\n"
+            "🔒 **Premium Content**: Access exclusive locked content\n\n"
         )
-    else:
-        welcome_header = f"👋 **Welcome back, @{username}!**\n\n"
-        intro_text = ""
-    
-    # Balance and tier status
-    balance_display = format_balance_display(user_credits)
-    tier_status = f"{tier_emoji} **{user_tier} User** • {tier_discount} discount on messages\n\n"
-    
-    # Feature highlights
-    features_text = (
-        "🌟 **What You Can Do:**\n"
-        "• 💬 Send messages with credits (text, photos, videos, files)\n"
-        "• 🔒 Purchase exclusive locked content with `/buy_content`\n"
-        "• 📊 Check your balance and transaction history\n"
-        "• ⚙️ Configure auto-recharge settings\n"
-        "• 🎁 Receive gifts and tier benefits\n\n"
-    )
-    
-    # Credit packages
-    packages_text = "💳 **Credit Packages Available:**\n"
-    for product in products[:3]:  # Show top 3 products
-        packages_text += f"• **{product['label']}** - {product['amount']} credits\n"
-    packages_text += "\n"
-    
-    # Special offers for new users
-    special_offers = ""
-    if is_new_user:
-        special_offers = (
-            "🎊 **New User Bonus!**\n"
-            "Get started with your first message - we've added some welcome credits!\n\n"
-        )
+        
         # Give new user bonus credits
         bonus_credits = 5
         database.add_user_credits(user_id, bonus_credits)
         user_credits += bonus_credits
-        balance_display = format_balance_display(user_credits)
+        
+    else:
+        welcome_header = f"👋 **Welcome back, @{username}!**\n\n"
+        intro_text = ""
     
-    # Combine all parts
+    # Balance and tier status with enhanced formatting
+    balance_display = format_balance_display(user_credits)
+    tier_status = f"{tier_emoji} **{user_tier} User** • {tier_discount} discount on all messages\n\n"
+    
+    # Enhanced features section
+    features_text = (
+        "🌟 **Quick Actions:**\n"
+        "• 📊 Check your account balance and tier progress\n"
+        "• 💳 Purchase credit packages (secure Stripe payments)\n"
+        "• 🔒 Browse our exclusive content store\n"
+        "• ⚙️ Configure auto-recharge and preferences\n"
+        "• 📞 Get instant help and support\n\n"
+    )
+    
+    # Credit packages preview - show top 3 most popular
+    packages_text = ""
+    if products:
+        packages_text = "💎 **Popular Packages:**\n"
+        for i, product in enumerate(products[:3]):
+            emoji = "🚀" if i == 0 else "⭐" if i == 1 else "🏆"
+            packages_text += f"• {emoji} **{product['label']}** - {product['amount']} credits\n"
+        packages_text += "\n"
+    
+    # Special messaging for new users
+    special_section = ""
+    if is_new_user:
+        special_section = (
+            "🎊 **You're All Set!**\n"
+            f"Your welcome bonus of {bonus_credits} credits has been added to your account. "
+            "Start by sending a message or exploring our features below!\n\n"
+        )
+    
+    # Call-to-action
+    cta_text = "👇 **Choose what you'd like to do:**"
+    
+    # Combine all parts for the main message
     full_message = (
         welcome_header +
         intro_text +
         balance_display + "\n" +
         tier_status +
         features_text +
-        special_offers +
         packages_text +
-        "Choose an option below to get started! 👇"
+        special_section +
+        cta_text
     )
     
-    # Enhanced keyboard with more options
+    # Enhanced keyboard with better organization
     keyboard = []
     
-    # Credit packages (top 3)
-    if products:
-        keyboard.append([InlineKeyboardButton(f"💎 {products[0]['label']}", callback_data=f"buy_{products[0]['id']}")])
-        if len(products) > 1:
-            keyboard.append([InlineKeyboardButton(f"⭐ {products[1]['label']}", callback_data=f"buy_{products[1]['id']}")])
-        if len(products) > 2:
-            keyboard.append([InlineKeyboardButton(f"🏆 {products[2]['label']}", callback_data=f"buy_{products[2]['id']}")])
-    
-    # Action buttons row 1
-    keyboard.append([
-        InlineKeyboardButton("📊 Balance", callback_data="check_balance"),
-        InlineKeyboardButton("🔒 Content Store", callback_data="content_store")
-    ])
-    
-    # Action buttons row 2
-    keyboard.append([
-        InlineKeyboardButton("⚙️ Settings", callback_data="user_settings"),
-        InlineKeyboardButton("ℹ️ Help", callback_data="help_menu")
-    ])
-    
-    # Billing and support
-    keyboard.append([InlineKeyboardButton("💳 Manage Billing", callback_data="billing")])
-    
+    # New user gets a special "Get Started" button
     if is_new_user:
-        keyboard.append([InlineKeyboardButton("🚀 Quick Start Guide", callback_data="quick_start")])
+        keyboard.append([InlineKeyboardButton("🚀 Get Started - Send First Message!", callback_data="quick_start")])
+        keyboard.append([InlineKeyboardButton("📖 Quick Tutorial", callback_data="tutorial")])
+    
+    # Credit packages (top 3) - more prominent for new users
+    if products:
+        if is_new_user:
+            keyboard.append([InlineKeyboardButton(f"💎 {products[0]['label']} (Most Popular)", callback_data=f"buy_{products[0]['id']}")])
+            if len(products) > 1:
+                keyboard.append([InlineKeyboardButton(f"⭐ {products[1]['label']}", callback_data=f"buy_{products[1]['id']}")])
+        else:
+            # Regular users get a condensed view
+            keyboard.append([InlineKeyboardButton(f"💎 {products[0]['label']}", callback_data=f"buy_{products[0]['id']}")])
+            if len(products) > 1:
+                keyboard.append([InlineKeyboardButton(f"⭐ {products[1]['label']}", callback_data=f"buy_{products[1]['id']}")])
+    
+    # Main action buttons - organized by importance
+    keyboard.append([
+        InlineKeyboardButton("📊 My Account", callback_data="check_balance"),
+        InlineKeyboardButton("💳 Buy Credits", callback_data="buy_menu")
+    ])
+    
+    keyboard.append([
+        InlineKeyboardButton("🔒 Content Store", callback_data="content_store"),
+        InlineKeyboardButton("⚙️ Settings", callback_data="user_settings")
+    ])
+    
+    # Support and help
+    keyboard.append([
+        InlineKeyboardButton("📞 Contact Support", callback_data="contact_support"),
+        InlineKeyboardButton("ℹ️ Help & FAQ", callback_data="help_menu")
+    ])
+    
+    # Special buttons for new users
+    if is_new_user:
+        keyboard.append([InlineKeyboardButton("🎁 New User Benefits", callback_data="new_user_benefits")])
 
     await safe_reply(update, full_message, reply_markup=InlineKeyboardMarkup(keyboard))
 
@@ -369,25 +419,127 @@ Ready to get started? Send your first message! 👇"""
             await query.edit_message_text("❌ Failed to update auto-recharge settings.")
     
     elif callback_data == "contact_support":
-        await query.edit_message_text(
-            "💬 **Contact Support**\n\n"
-            "Our support team is ready to help!\n\n"
-            "Just send any message and we'll respond quickly. You can send:\n"
-            "• Text messages\n"
-            "• Photos with questions\n" 
-            "• Videos or documents\n"
-            "• Voice messages\n\n"
-            "**Response time:** Usually within minutes!\n\n"
-            "Go ahead and send your message now! 👇",
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("🔙 Back to Help", callback_data="help_menu")
-            ]]),
-            parse_mode='Markdown'
-        )
-    
-    elif callback_data == "billing":
-        await billing_command(update, context)
+        support_text = """📞 **Contact Our Support Team**
 
+Ready to send your first message? Just type anything below and send it!
+
+**What happens next:**
+1. Your message goes directly to our support team
+2. Credits are deducted based on message type
+3. You'll receive a professional response
+4. Continue the conversation naturally
+
+**Example messages you could send:**
+• "Hi! I'm new here and have a question about..."
+• "Can you help me understand how this works?"
+• "What services do you offer?"
+• "I'd like to know more about your premium content"
+
+**Message Costs:**
+• Text: 1 credit
+• Photo: 2 credits
+• Video: 3 credits  
+• Document: 2 credits
+
+💡 **Tip:** Your current tier gets you {('20%' if database.get_user_tier(user_id) == 'VIP' else '10%' if database.get_user_tier(user_id) == 'Regular' else '0%')} discount!
+
+Go ahead - type your message below! 👇"""
+        
+        keyboard = [
+            [InlineKeyboardButton("💳 Need More Credits?", callback_data="buy_menu")],
+            [InlineKeyboardButton("🔙 Back to Menu", callback_data="back_to_start")]
+        ]
+        await query.edit_message_text(support_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+    elif callback_data == "new_user_benefits":
+        benefits_text = """🎁 **New User Benefits & Rewards**
+
+Welcome to our premium messaging service! As a new user, you get exclusive benefits:
+
+**🎉 Immediate Benefits:**
+• ✅ 5 welcome credits (already added!)
+• ✅ Priority support responses
+• ✅ Access to new user tutorials
+• ✅ Special onboarding assistance
+
+**🚀 Getting Started Bonus:**
+• Your first message gets extra attention
+• Detailed explanation of all features
+• Personalized service recommendations
+• Help setting up your preferences
+
+**📈 Growth Path:**
+• Send 50+ credits worth → ⭐ Regular tier (10% discount)
+• Send 100+ credits worth → 🏆 VIP tier (20% discount)
+• Lifetime tier status once achieved
+• Compounding savings over time
+
+**💎 Exclusive Access:**
+• First look at new premium content
+• Early access to special promotions
+• Invitations to exclusive events
+• Personalized service offerings
+
+**🎯 Your Next Steps:**
+1. Send your first message (use your 5 free credits!)
+2. Explore our content store
+3. Consider a starter package for ongoing use
+4. Set up auto-recharge for convenience
+
+Ready to begin your premium experience? 🌟"""
+        
+        keyboard = [
+            [InlineKeyboardButton("💬 Send First Message", callback_data="contact_support")],
+            [InlineKeyboardButton("🔒 Explore Content Store", callback_data="content_store")],
+            [InlineKeyboardButton("💳 View Credit Packages", callback_data="buy_menu")],
+            [InlineKeyboardButton("🔙 Back to Menu", callback_data="back_to_start")]
+        ]
+        await query.edit_message_text(benefits_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+    
+    elif callback_data == "tutorial":
+        tutorial_text = """📖 **Quick Tutorial - How It Works**
+
+**Step 1: Understanding Credits** 💰
+• Credits are used to send messages to our team
+• Different message types cost different amounts:
+  - Text messages: 1 credit
+  - Photos: 2 credits  
+  - Videos: 3 credits
+  - Documents: 2 credits
+
+**Step 2: Sending Messages** 💬
+• Just type and send any message normally
+• Credits are automatically deducted
+• Your message goes directly to our support team
+• You'll get a professional response quickly
+
+**Step 3: Getting More Credits** 💳
+• Use the "Buy Credits" button for secure payment
+• Choose from various package sizes
+• Instant credit addition after payment
+• Set up auto-recharge to never run out
+
+**Step 4: Tier Benefits** 🏆
+• Use more credits → unlock higher tiers
+• ⭐ Regular tier (50+ credits): 10% discount
+• 🏆 VIP tier (100+ credits): 20% discount
+• Automatic discounts applied to all messages
+
+**Step 5: Premium Features** 🌟
+• Access exclusive locked content
+• Configure personalized settings
+• Track your usage and spending
+• Get priority support as a higher tier user
+
+Ready to start? Send your first message! 👇"""
+        
+        keyboard = [
+            [InlineKeyboardButton("💬 Send First Message", callback_data="contact_support")],
+            [InlineKeyboardButton("💳 Buy Credits", callback_data="buy_menu")],
+            [InlineKeyboardButton("🔙 Back to Menu", callback_data="back_to_start")]
+        ]
+        await query.edit_message_text(tutorial_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+    
     elif callback_data.startswith("buy_"):
         product_id = int(callback_data.split("_")[1])
         product = next((p for p in database.get_active_products() if p['id'] == product_id), None)
