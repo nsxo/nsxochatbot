@@ -1,18 +1,15 @@
 [phases.setup]
-nixPkgs = ["nodejs", "python310", "python310Packages.pip", "python310Packages.virtualenv"]
+nixPkgs = ["nodejs", "npm"]
 
 [phases.install]
 cmds = [
-    "python -m venv /opt/venv",
-    ". /opt/venv/bin/activate && cd telegram_bot && pip install -r requirements.txt",
-    ". /opt/venv/bin/activate && cd telegram_bot/admin_dashboard && pip install -r requirements.txt",
-    "cd telegram_bot/admin_dashboard && npm install"
+    "cd webapp && npm install"
 ]
 
 [phases.build]
 cmds = [
-    "cd telegram_bot/admin_dashboard && npm run build"
+    "cd webapp && npm run build"
 ]
 
 [start]
-cmd = ". /opt/venv/bin/activate && cd telegram_bot/admin_dashboard && python start_server.py" 
+cmd = "cd webapp && npx serve -s dist -l $PORT" 
