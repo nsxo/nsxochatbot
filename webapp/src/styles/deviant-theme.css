@@ -612,15 +612,26 @@ a:hover {
 }
 
 /* 14. Utility Classes */
-.text-primary { color: var(--text-primary); }
-.text-secondary { color: var(--text-secondary); }
-.text-accent { color: var(--accent-green); }
+.text-primary { color: var(--text-primary) !important; }
+.text-secondary { color: var(--text-secondary) !important; }
+.text-accent { color: var(--accent-green) !important; }
 .text-center { text-align: center; }
 .text-right { text-align: right; }
 
-.bg-primary { background-color: var(--bg-primary); }
-.bg-secondary { background-color: var(--bg-secondary); }
-.bg-tertiary { background-color: var(--bg-tertiary); }
+.bg-primary { background-color: var(--bg-primary) !important; }
+.bg-secondary { background-color: var(--bg-secondary) !important; }
+.bg-tertiary { background-color: var(--bg-tertiary) !important; }
+
+/* Fix contrast issues */
+.font-weight-medium { 
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+}
+
+.text-small { 
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
 
 .border { border: 1px solid var(--border-color); }
 .border-top { border-top: 1px solid var(--border-color); }

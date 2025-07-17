@@ -208,7 +208,7 @@ const DashboardPage: React.FC = () => {
                       {user.avatar}
                     </div>
                     <div>
-                      <div style={{ fontWeight: 'var(--font-weight-medium)', fontSize: '0.875rem' }}>
+                      <div style={{ fontWeight: 'var(--font-weight-medium)', fontSize: '0.875rem', color: 'var(--text-primary)' }}>
                         {user.name}
                       </div>
                       <div className="text-secondary text-small">

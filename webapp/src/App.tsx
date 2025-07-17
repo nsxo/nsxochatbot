@@ -29,15 +29,15 @@ const SettingsPage = () => (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--spacing-sm)' }}>
               <div>
                 <label className="form-label text-small">Text Message</label>
-                <input type="number" className="form-input" defaultValue="1" />
+                <input type="number" className="form-input" defaultValue="1" aria-label="Text message cost" />
               </div>
               <div>
                 <label className="form-label text-small">Photo Message</label>
-                <input type="number" className="form-input" defaultValue="3" />
+                <input type="number" className="form-input" defaultValue="3" aria-label="Photo message cost" />
               </div>
               <div>
                 <label className="form-label text-small">Voice Message</label>
-                <input type="number" className="form-input" defaultValue="5" />
+                <input type="number" className="form-input" defaultValue="5" aria-label="Voice message cost" />
               </div>
             </div>
           </div>
@@ -61,11 +61,11 @@ const SettingsPage = () => (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 'var(--spacing-lg)' }}>
           <div className="flex items-center justify-between p-md bg-tertiary rounded">
             <div>
-              <div className="font-weight-medium">Auto-Recharge</div>
+              <div style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--text-primary)' }}>Auto-Recharge</div>
               <div className="text-secondary text-small">Automatically recharge user credits</div>
             </div>
             <label className="switch">
-              <input type="checkbox" />
+              <input type="checkbox" aria-label="Enable auto-recharge" />
               <span style={{
                 position: 'relative',
                 width: '44px',
@@ -80,11 +80,11 @@ const SettingsPage = () => (
           
           <div className="flex items-center justify-between p-md bg-tertiary rounded">
             <div>
-              <div className="font-weight-medium">Low Credit Alerts</div>
+              <div style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--text-primary)' }}>Low Credit Alerts</div>
               <div className="text-secondary text-small">Notify users when credits are low</div>
             </div>
             <label className="switch">
-              <input type="checkbox" defaultChecked />
+              <input type="checkbox" defaultChecked aria-label="Enable low credit alerts" />
               <span style={{
                 position: 'relative',
                 width: '44px',
@@ -106,7 +106,7 @@ const ProductsPage = () => (
   <div>
     <div className="flex justify-between items-center mb-lg">
       <div>
-        <h2>Credit Packages</h2>
+        <h2 style={{ color: 'var(--text-primary)' }}>Credit Packages</h2>
         <p className="text-secondary">Manage your bot's credit packages and pricing</p>
       </div>
       <button className="btn btn-primary">
@@ -162,15 +162,15 @@ const ProductsPage = () => (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)', marginBottom: 'var(--spacing-lg)' }}>
               <div className="flex items-center gap-sm">
                 <span style={{ color: 'var(--accent-green)' }}>✓</span>
-                <span className="text-small">{product.credits} message credits</span>
+                <span className="text-small" style={{ color: 'var(--text-primary)' }}>{product.credits} message credits</span>
               </div>
               <div className="flex items-center gap-sm">
                 <span style={{ color: 'var(--accent-green)' }}>✓</span>
-                <span className="text-small">Priority support</span>
+                <span className="text-small" style={{ color: 'var(--text-primary)' }}>Priority support</span>
               </div>
               <div className="flex items-center gap-sm">
                 <span style={{ color: 'var(--accent-green)' }}>✓</span>
-                <span className="text-small">Advanced features</span>
+                <span className="text-small" style={{ color: 'var(--text-primary)' }}>Advanced features</span>
               </div>
             </div>
           </div>
@@ -189,7 +189,7 @@ const UsersPage = () => (
   <div>
     <div className="flex justify-between items-center mb-lg">
       <div>
-        <h2>User Management</h2>
+        <h2 style={{ color: 'var(--text-primary)' }}>User Management</h2>
         <p className="text-secondary">View and manage your bot users</p>
       </div>
       <div className="flex gap-sm">
@@ -228,12 +228,13 @@ const UsersPage = () => (
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontSize: '0.875rem',
-                    fontWeight: 'var(--font-weight-bold)'
+                    fontWeight: 'var(--font-weight-bold)',
+                    color: 'var(--text-primary)'
                   }}>
                     {user.name.charAt(0)}
                   </div>
                   <div>
-                    <div className="font-weight-medium">{user.name}</div>
+                    <div style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--text-primary)' }}>{user.name}</div>
                     <div className="text-secondary text-small">{user.username}</div>
                   </div>
                 </div>
