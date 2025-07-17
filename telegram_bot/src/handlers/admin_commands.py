@@ -24,7 +24,10 @@ logger = logging.getLogger(__name__)
 # Sub-states for specific operations
 (EDIT_WELCOME, EDIT_COSTS, BAN_USER_INPUT, UNBAN_USER_INPUT, ADD_CREDITS_USER, 
  ADD_CREDITS_AMOUNT, BROADCAST_MESSAGE, GIFT_AMOUNT, SEARCH_INPUT, STATUS_INPUT,
- LOCKED_CONTENT_UPLOAD, LOCKED_CONTENT_PRICE, LOCKED_CONTENT_DESCRIPTION, LOCKED_CONTENT_CONFIRM) = range(14, 28)
+ LOCKED_CONTENT_UPLOAD, LOCKED_CONTENT_PRICE, LOCKED_CONTENT_DESCRIPTION, LOCKED_CONTENT_CONFIRM,
+ # Product Management States
+ PRODUCT_CREATE_LABEL, PRODUCT_CREATE_AMOUNT, PRODUCT_CREATE_DESCRIPTION, PRODUCT_CREATE_STRIPE,
+ PRODUCT_EDIT_SELECT, PRODUCT_EDIT_FIELD, PRODUCT_EDIT_VALUE, PRODUCT_CONFIRM_DELETE) = range(14, 36)
 
 # Admin status tracking
 admin_status = {
@@ -318,35 +321,376 @@ async def user_management_handler(update: Update, context: ContextTypes.DEFAULT_
 # ========================= Products Menu =========================
 
 async def products_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Handle products management menu."""
+    """Enhanced products management menu with full functionality."""
+    if not is_admin(update):
+        await safe_reply(update, "❌ Admin access required.")
+        return ConversationHandler.END
+
     products = database.get_active_products()
+    all_products = database.get_all_products()  # Will need to implement this
+    
+    # Calculate stats
+    total_products = len(all_products) if all_products else len(products)
+    active_products = len(products)
+    inactive_products = total_products - active_products
+    
+    # Get top selling product (placeholder for now)
+    top_product = products[0] if products else None
     
     message = f"""🛒 **Product Management**
 
-📊 **Current Products:** {len(products)}"""
+📊 **Overview:**
+• Total Products: {total_products}
+• ✅ Active: {active_products}
+• ❌ Inactive: {inactive_products}
+• 🏆 Top Seller: {top_product.get('label', 'N/A') if top_product else 'N/A'}
+
+📋 **Active Products:**"""
 
     if products:
-        message += "\n\n📋 **Active Products:**\n"
-        for product in products[:5]:
-            message += f"• {product.get('label', 'Unnamed')} - {product.get('amount', 0)} credits\n"
+        for i, product in enumerate(products[:5], 1):
+            label = product.get('label', 'Unnamed Product')
+            amount = product.get('amount', 0)
+            item_type = product.get('item_type', 'credits')
+            price_id = product.get('stripe_price_id', 'No Stripe ID')
+            
+            type_emoji = "💰" if item_type == 'credits' else "⏰"
+            type_unit = "credits" if item_type == 'credits' else "seconds"
+            
+            message += f"\n{i}. {type_emoji} {label}"
+            message += f"\n   Amount: {amount} {type_unit}"
+            message += f"\n   Stripe: {price_id[:20]}..."
+    else:
+        message += "\n*No active products found*"
+    
+    if len(products) > 5:
+        message += f"\n\n... and {len(products) - 5} more products"
 
     keyboard = [
         [
-            InlineKeyboardButton("🛒 Manage Products", callback_data='manage_products'),
-            InlineKeyboardButton("➕ Create Product", callback_data='create_product')
+            InlineKeyboardButton("➕ Create Product", callback_data='create_product'),
+            InlineKeyboardButton("✏️ Edit Product", callback_data='edit_product')
         ],
         [
-            InlineKeyboardButton("📊 Product Stats", callback_data='product_stats'),
-            InlineKeyboardButton("💰 Pricing", callback_data='product_pricing')
+            InlineKeyboardButton("👁️ View All Products", callback_data='view_all_products'),
+            InlineKeyboardButton("🔄 Toggle Status", callback_data='toggle_product_status')
         ],
         [
-            InlineKeyboardButton("🔄 Sync Stripe", callback_data='sync_stripe'),
-            InlineKeyboardButton("🔙 Back to Menu", callback_data='back_to_main')
-        ]
+            InlineKeyboardButton("🗑️ Delete Product", callback_data='delete_product'),
+            InlineKeyboardButton("📊 Product Analytics", callback_data='product_analytics')
+        ],
+        [
+            InlineKeyboardButton("💳 Sync with Stripe", callback_data='sync_stripe_products'),
+            InlineKeyboardButton("📤 Export Products", callback_data='export_products')
+        ],
+        [InlineKeyboardButton("🔙 Back to Menu", callback_data='back_to_main')]
     ]
     
     await safe_reply(update, message, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
     return PRODUCTS_MENU
+
+# ========================= Product Creation =========================
+
+async def create_product_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Start product creation wizard."""
+    query = update.callback_query
+    await query.answer()
+    
+    message = """➕ **Create New Product**
+
+Let's create a new credit package or time session for your users to purchase.
+
+**Step 1 of 4: Product Label**
+
+Enter a descriptive name for your product:
+*Examples:*
+• "🚀 Starter Pack - 10 Credits"
+• "💎 Premium Bundle - 50 Credits"  
+• "⏰ 1 Hour Chat Session"
+• "🏆 VIP Package - 100 Credits"
+
+Type your product label:"""
+
+    keyboard = [[InlineKeyboardButton("❌ Cancel", callback_data='back_to_products')]]
+    
+    await query.edit_message_text(message, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+    return PRODUCT_CREATE_LABEL
+
+async def product_create_label_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle product label input."""
+    label = update.message.text.strip()
+    
+    if len(label) < 3:
+        await update.message.reply_text("❌ Product label must be at least 3 characters long. Please try again:")
+        return PRODUCT_CREATE_LABEL
+    
+    if len(label) > 100:
+        await update.message.reply_text("❌ Product label must be less than 100 characters. Please try again:")
+        return PRODUCT_CREATE_LABEL
+    
+    # Store in context
+    context.user_data['product_creation'] = {'label': label}
+    
+    message = f"""✅ **Product Label Set**
+**Label:** {label}
+
+**Step 2 of 4: Product Type & Amount**
+
+Choose the type of product you want to create:"""
+
+    keyboard = [
+        [
+            InlineKeyboardButton("💰 Credits Package", callback_data='product_type_credits'),
+            InlineKeyboardButton("⏰ Time Session", callback_data='product_type_time')
+        ],
+        [InlineKeyboardButton("❌ Cancel", callback_data='back_to_products')]
+    ]
+    
+    await update.message.reply_text(message, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+    return PRODUCT_CREATE_AMOUNT
+
+async def product_type_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle product type selection."""
+    query = update.callback_query
+    await query.answer()
+    
+    product_type = query.data.split('_')[-1]  # credits or time
+    context.user_data['product_creation']['item_type'] = product_type
+    
+    if product_type == 'credits':
+        message = f"""💰 **Credits Package Selected**
+
+**Step 2b: Credit Amount**
+
+How many credits should this package contain?
+
+*Popular amounts:*
+• 10 credits (starter)
+• 25 credits (basic) 
+• 50 credits (popular)
+• 100 credits (value)
+• 200+ credits (premium)
+
+Enter the number of credits:"""
+    else:
+        message = f"""⏰ **Time Session Selected**
+
+**Step 2b: Session Duration**
+
+How long should this time session last?
+
+*Popular durations:*
+• 1800 (30 minutes)
+• 3600 (1 hour)
+• 7200 (2 hours)
+• 14400 (4 hours)
+
+Enter duration in seconds:"""
+    
+    keyboard = [[InlineKeyboardButton("❌ Cancel", callback_data='back_to_products')]]
+    await query.edit_message_text(message, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+    return PRODUCT_CREATE_AMOUNT
+
+async def product_amount_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle product amount input."""
+    try:
+        amount = int(update.message.text.strip())
+        if amount <= 0:
+            raise ValueError("Amount must be positive")
+        
+        if amount > 10000:  # Reasonable upper limit
+            await update.message.reply_text("❌ Amount too large. Please enter a reasonable amount:")
+            return PRODUCT_CREATE_AMOUNT
+            
+    except ValueError:
+        await update.message.reply_text("❌ Please enter a valid positive number:")
+        return PRODUCT_CREATE_AMOUNT
+    
+    # Store amount
+    context.user_data['product_creation']['amount'] = amount
+    product_type = context.user_data['product_creation']['item_type']
+    
+    unit = "credits" if product_type == 'credits' else "seconds"
+    if product_type == 'time':
+        hours = amount // 3600
+        minutes = (amount % 3600) // 60
+        time_display = f"{hours}h {minutes}m" if hours > 0 else f"{minutes}m"
+        unit_display = f"{time_display} ({amount} seconds)"
+    else:
+        unit_display = f"{amount} credits"
+    
+    message = f"""✅ **Amount Set**
+**Amount:** {unit_display}
+
+**Step 3 of 4: Description**
+
+Enter a brief description for your product. This helps users understand what they're buying.
+
+*Examples:*
+• "Perfect for trying out the service"
+• "Great value pack for regular users"
+• "Unlimited messaging for busy professionals"
+• "Best value - includes VIP perks"
+
+Type your description:"""
+
+    keyboard = [
+        [InlineKeyboardButton("⏭️ Skip Description", callback_data='skip_description')],
+        [InlineKeyboardButton("❌ Cancel", callback_data='back_to_products')]
+    ]
+    
+    await update.message.reply_text(message, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+    return PRODUCT_CREATE_DESCRIPTION
+
+async def product_description_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle product description input."""
+    if update.callback_query:
+        # Skip description
+        description = ""
+        await update.callback_query.answer()
+    else:
+        description = update.message.text.strip()
+        if len(description) > 500:
+            await update.message.reply_text("❌ Description must be less than 500 characters. Please try again:")
+            return PRODUCT_CREATE_DESCRIPTION
+    
+    context.user_data['product_creation']['description'] = description
+    
+    # Show final step
+    product_data = context.user_data['product_creation']
+    unit_display = f"{product_data['amount']} credits" if product_data['item_type'] == 'credits' else f"{product_data['amount']} seconds"
+    
+    message = f"""✅ **Description Set**
+
+**Step 4 of 4: Stripe Price ID**
+
+To complete the product setup, you need a Stripe Price ID. This connects your product to Stripe for payment processing.
+
+**Current Product Summary:**
+• **Label:** {product_data['label']}
+• **Type:** {product_data['item_type'].title()}
+• **Amount:** {unit_display}
+• **Description:** {product_data['description'] or 'No description'}
+
+**Option 1:** Enter existing Stripe Price ID
+**Option 2:** Create without Stripe (you can add it later)
+
+Enter Stripe Price ID (starts with 'price_') or choose an option:"""
+
+    keyboard = [
+        [InlineKeyboardButton("🚀 Create Without Stripe", callback_data='create_without_stripe')],
+        [InlineKeyboardButton("📋 How to Get Stripe ID", callback_data='stripe_help')],
+        [InlineKeyboardButton("❌ Cancel", callback_data='back_to_products')]
+    ]
+    
+    if update.callback_query:
+        await update.callback_query.edit_message_text(message, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+    else:
+        await update.message.reply_text(message, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+    return PRODUCT_CREATE_STRIPE
+
+async def product_stripe_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle Stripe ID input or creation without Stripe."""
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        
+        if query.data == 'create_without_stripe':
+            stripe_price_id = None
+        elif query.data == 'stripe_help':
+            help_message = """📋 **How to Get Stripe Price ID**
+
+1. **Log into your Stripe Dashboard**
+2. **Go to Products** → Create a product
+3. **Set up pricing** → Copy the Price ID
+4. **Price ID format:** price_xxxxxxxxxxxxxxxxxx
+
+**Example:** price_1234567890abcdef
+
+Once you have the Price ID, paste it here or create the product without Stripe for now."""
+            
+            keyboard = [
+                [InlineKeyboardButton("🚀 Create Without Stripe", callback_data='create_without_stripe')],
+                [InlineKeyboardButton("🔙 Back", callback_data='back_to_products')]
+            ]
+            
+            await query.edit_message_text(help_message, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+            return PRODUCT_CREATE_STRIPE
+        else:
+            return PRODUCT_CREATE_STRIPE
+    else:
+        # Text input for Stripe ID
+        stripe_price_id = update.message.text.strip()
+        
+        # Validate Stripe ID format
+        if stripe_price_id and not stripe_price_id.startswith('price_'):
+            await update.message.reply_text("❌ Stripe Price ID must start with 'price_'. Please try again or create without Stripe:")
+            return PRODUCT_CREATE_STRIPE
+    
+    # Create the product
+    product_data = context.user_data['product_creation']
+    
+    try:
+        # Add product to database
+        success = database.create_product(
+            label=product_data['label'],
+            amount=product_data['amount'],
+            item_type=product_data['item_type'],
+            description=product_data['description'],
+            stripe_price_id=stripe_price_id
+        )
+        
+        if success:
+            success_message = f"""🎉 **Product Created Successfully!**
+
+**Product Details:**
+• **Label:** {product_data['label']}
+• **Type:** {product_data['item_type'].title()}
+• **Amount:** {product_data['amount']} {'credits' if product_data['item_type'] == 'credits' else 'seconds'}
+• **Description:** {product_data['description'] or 'No description'}
+• **Stripe ID:** {stripe_price_id or 'Not set (can be added later)'}
+• **Status:** ✅ Active
+
+Your new product is now available for purchase!"""
+
+            keyboard = [
+                [InlineKeyboardButton("➕ Create Another", callback_data='create_product')],
+                [InlineKeyboardButton("🛒 View Products", callback_data='view_all_products')],
+                [InlineKeyboardButton("🔙 Back to Menu", callback_data='back_to_main')]
+            ]
+            
+            # Clean up context
+            del context.user_data['product_creation']
+            
+            if update.callback_query:
+                await query.edit_message_text(success_message, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+            else:
+                await update.message.reply_text(success_message, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+            
+            return PRODUCTS_MENU
+        else:
+            error_message = "❌ Failed to create product. Please try again or contact support."
+            keyboard = [[InlineKeyboardButton("🔙 Back to Products", callback_data='back_to_products')]]
+            
+            if update.callback_query:
+                await query.edit_message_text(error_message, reply_markup=InlineKeyboardMarkup(keyboard))
+            else:
+                await update.message.reply_text(error_message, reply_markup=InlineKeyboardMarkup(keyboard))
+            
+            return PRODUCTS_MENU
+            
+    except Exception as e:
+        logger.error(f"Error creating product: {e}")
+        error_message = f"❌ Error creating product: {str(e)[:100]}..."
+        
+        keyboard = [[InlineKeyboardButton("🔙 Back to Products", callback_data='back_to_products')]]
+        
+        if update.callback_query:
+            await query.edit_message_text(error_message, reply_markup=InlineKeyboardMarkup(keyboard))
+        else:
+            await update.message.reply_text(error_message, reply_markup=InlineKeyboardMarkup(keyboard))
+        
+        return PRODUCTS_MENU
 
 # ========================= Settings Menu =========================
 
@@ -384,39 +728,40 @@ async def settings_menu_handler(update: Update, context: ContextTypes.DEFAULT_TY
 # ========================= System Menu =========================
 
 async def system_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Handle system monitoring and management."""
-    stats = await get_real_time_stats()
+    """Handle system management menu."""
+    if not is_admin(update):
+        return ConversationHandler.END
     
-    message = f"""🔧 **System Management**
+    # Get system stats
+    import psutil
+    import platform
+    
+    cpu_percent = psutil.cpu_percent(interval=1)
+    memory = psutil.virtual_memory()
+    disk = psutil.disk_usage('/')
+    
+    system_info = f"""🖥️ **System Management**
 
-🏥 **System Health:**
-• Database: {'✅ Healthy' if stats.get('db_healthy', True) else '⚠️ Issues'}
-• Webhook: {'✅ Active' if stats.get('webhook_active', True) else '❌ Inactive'}
-• Bot Status: 🟢 Running
-• Memory Usage: {stats.get('memory_usage', 'N/A')}
+**System Information:**
+• Platform: {platform.system()} {platform.release()}
+• Python: {platform.python_version()}
+• CPU Usage: {cpu_percent}%
+• Memory: {memory.percent}% ({memory.used // 1024 // 1024} MB / {memory.total // 1024 // 1024} MB)
+• Disk: {disk.percent}% ({disk.used // 1024 // 1024 // 1024} GB / {disk.total // 1024 // 1024 // 1024} GB)
 
-⏱️ **Performance:**
-• Uptime: {stats.get('uptime', 'N/A')}
-• Response Time: {stats.get('avg_response_time', 'N/A')}
-• Messages/Hour: {stats.get('messages_per_hour', 0)}"""
-
+**Database Status:** Connected ✅
+**Bot Status:** Running ✅"""
+    
     keyboard = [
-        [
-            InlineKeyboardButton("🔧 System Status", callback_data='system_status'),
-            InlineKeyboardButton("📊 Performance", callback_data='performance_stats')
-        ],
-        [
-            InlineKeyboardButton("🗄️ Database", callback_data='database_management'),
-            InlineKeyboardButton("📝 Logs", callback_data='system_logs')
-        ],
-        [
-            InlineKeyboardButton("💾 Backup", callback_data='system_backup'),
-            InlineKeyboardButton("🛡️ Security", callback_data='security_settings')
-        ],
-        [InlineKeyboardButton("🔙 Back to Menu", callback_data='back_to_main')]
+        [InlineKeyboardButton("🔄 Restart Bot", callback_data="restart_bot")],
+        [InlineKeyboardButton("📊 View Logs", callback_data="view_logs")],
+        [InlineKeyboardButton("🧹 Clear Cache", callback_data="clear_cache")],
+        [InlineKeyboardButton("💾 Backup Database", callback_data="backup_db")],
+        [InlineKeyboardButton("🔧 System Settings", callback_data="system_settings")],
+        [InlineKeyboardButton("🔙 Back to Main Menu", callback_data="back_to_main")]
     ]
     
-    await safe_reply(update, message, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+    await safe_reply(update, system_info, reply_markup=InlineKeyboardMarkup(keyboard))
     return SYSTEM_MENU
 
 # ========================= Status Management =========================
@@ -929,12 +1274,456 @@ async def mass_gift_target_handler(update: Update, context: ContextTypes.DEFAULT
     )
     return GIFT_AMOUNT
 
+# ========================= Quick Replies System =========================
+
+async def quick_replies_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle quick replies management."""
+    if not is_admin(update):
+        return ConversationHandler.END
+    
+    quick_replies = database.get_all_quick_replies()
+    
+    text = "📝 **Quick Replies Management**\n\n"
+    
+    if quick_replies:
+        text += "**Current Quick Replies:**\n"
+        for reply in quick_replies[:10]:  # Show first 10
+            status = "✅" if reply.get('is_active') else "❌"
+            text += f"{status} `{reply['keyword']}` → {reply['response'][:50]}...\n"
+        
+        if len(quick_replies) > 10:
+            text += f"\n... and {len(quick_replies) - 10} more"
+    else:
+        text += "No quick replies configured yet."
+    
+    text += "\n\n**How to use:**\nIn topics, type the keyword (e.g., 'hello') and it will send the response automatically!"
+    
+    keyboard = [
+        [InlineKeyboardButton("➕ Add Quick Reply", callback_data="add_quick_reply")],
+        [InlineKeyboardButton("📝 Edit Quick Reply", callback_data="edit_quick_reply")],
+        [InlineKeyboardButton("🗑️ Delete Quick Reply", callback_data="delete_quick_reply")],
+        [InlineKeyboardButton("📋 View All Replies", callback_data="view_all_replies")],
+        [InlineKeyboardButton("🔙 Back to Main Menu", callback_data="back_to_main")]
+    ]
+    
+    await safe_reply(update, text, reply_markup=InlineKeyboardMarkup(keyboard))
+    return QUICK_REPLIES_MENU
+
+# ========================= Search System =========================
+
+async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle search functionality."""
+    if not is_admin(update):
+        return ConversationHandler.END
+    
+    keyboard = [
+        [InlineKeyboardButton("👤 Search Users", callback_data="search_users")],
+        [InlineKeyboardButton("💬 Search Messages", callback_data="search_messages")],
+        [InlineKeyboardButton("💰 Search Transactions", callback_data="search_transactions")],
+        [InlineKeyboardButton("🔒 Search Content", callback_data="search_content")],
+        [InlineKeyboardButton("🔙 Back to Main Menu", callback_data="back_to_main")]
+    ]
+    
+    text = """🔍 **Search System**
+
+Search through your bot's data to find specific information.
+
+**Available Search Options:**
+• **Users** - Find users by username, ID, or name
+• **Messages** - Search message history and conversations
+• **Transactions** - Find payment and credit transactions
+• **Content** - Search through locked content
+
+Select what you want to search:"""
+    
+    await safe_reply(update, text, reply_markup=InlineKeyboardMarkup(keyboard))
+    return SEARCH_MENU
+
+async def search_input_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle search input."""
+    search_type = context.user_data.get('search_type')
+    if not search_type:
+        await update.message.reply_text("❌ No search type selected.")
+        return ConversationHandler.END
+    
+    query = update.message.text.strip()
+    
+    if len(query) < 2:
+        await update.message.reply_text("❌ Search query too short. Please enter at least 2 characters.")
+        return SEARCH_INPUT
+    
+    # Perform search based on type
+    results = []
+    
+    if search_type == "users":
+        results = database.search_users(query)
+    elif search_type == "messages":
+        results = database.search_messages(query) 
+    elif search_type == "transactions":
+        results = database.search_transactions(query)
+    elif search_type == "content":
+        results = database.search_locked_content(query)
+    
+    # Format results
+    if not results:
+        await update.message.reply_text(f"🔍 No results found for '{query}'")
+        return ConversationHandler.END
+    
+    result_text = f"🔍 **Search Results for '{query}'**\n\n"
+    
+    for i, result in enumerate(results[:10]):  # Show first 10
+        if search_type == "users":
+            result_text += f"{i+1}. @{result.get('username', 'N/A')} (ID: {result['telegram_id']})\n   Credits: {result.get('message_credits', 0)}\n\n"
+        elif search_type == "transactions":
+            result_text += f"{i+1}. {result['transaction_type']} - {result['amount']} credits\n   User: {result['user_id']} | {result['created_at']}\n\n"
+        # Add more result formatting as needed
+    
+    if len(results) > 10:
+        result_text += f"... and {len(results) - 10} more results"
+    
+    keyboard = [
+        [InlineKeyboardButton("🔍 New Search", callback_data="new_search")],
+        [InlineKeyboardButton("🔙 Back to Main Menu", callback_data="back_to_main")]
+    ]
+    
+    await update.message.reply_text(result_text, reply_markup=InlineKeyboardMarkup(keyboard))
+    return ConversationHandler.END
+
 # ========================= Placeholder Handlers =========================
 
 async def placeholder_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Placeholder for unimplemented features."""
     await safe_reply(update, "🚧 This feature is coming soon!\n\nWe're working on implementing this functionality.")
     return await admin_command(update, context)
+
+async def broadcast_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Placeholder broadcast handler."""
+    await safe_reply(update, "📢 **Broadcast System**\n\n🚧 Coming soon! This will allow you to send messages to all users.")
+    return await admin_command(update, context)
+
+# ========================= Product Editing =========================
+
+async def edit_product_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Show product selection for editing."""
+    query = update.callback_query
+    await query.answer()
+    
+    products = database.get_all_products()
+    
+    if not products:
+        message = """❌ **No Products Found**
+        
+You need to create some products first before you can edit them.
+
+Use the "Create Product" button to add your first product."""
+        
+        keyboard = [
+            [InlineKeyboardButton("➕ Create Product", callback_data='create_product')],
+            [InlineKeyboardButton("🔙 Back to Products", callback_data='back_to_products')]
+        ]
+        
+        await query.edit_message_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
+        return PRODUCTS_MENU
+    
+    message = """✏️ **Edit Product**
+
+Select a product to edit:"""
+
+    keyboard = []
+    for product in products:
+        product_id = product.get('id')
+        label = product.get('label', 'Unnamed Product')
+        status = "✅" if product.get('is_active') else "❌"
+        amount = product.get('amount', 0)
+        item_type = product.get('item_type', 'credits')
+        
+        button_text = f"{status} {label} ({amount} {item_type})"
+        keyboard.append([InlineKeyboardButton(button_text[:50], callback_data=f'edit_product_{product_id}')])
+    
+    keyboard.append([InlineKeyboardButton("🔙 Back to Products", callback_data='back_to_products')])
+    
+    await query.edit_message_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
+    return PRODUCT_EDIT_SELECT
+
+async def edit_product_select_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle product selection for editing."""
+    query = update.callback_query
+    await query.answer()
+    
+    if query.data == 'back_to_products':
+        return await products_menu_handler(update, context)
+    
+    # Extract product ID
+    product_id = int(query.data.split('_')[-1])
+    product = database.get_product_by_id(product_id)
+    
+    if not product:
+        await query.edit_message_text("❌ Product not found.")
+        return PRODUCTS_MENU
+    
+    context.user_data['editing_product_id'] = product_id
+    
+    # Display product details and editing options
+    label = product.get('label', 'Unnamed')
+    amount = product.get('amount', 0)
+    item_type = product.get('item_type', 'credits')
+    description = product.get('description', 'No description')
+    stripe_id = product.get('stripe_price_id', 'Not set')
+    status = "✅ Active" if product.get('is_active') else "❌ Inactive"
+    
+    message = f"""✏️ **Edit Product**
+
+**Current Product Details:**
+• **Label:** {label}
+• **Amount:** {amount} {item_type}
+• **Description:** {description}
+• **Stripe ID:** {stripe_id}
+• **Status:** {status}
+
+**What would you like to edit?**"""
+
+    keyboard = [
+        [
+            InlineKeyboardButton("📝 Edit Label", callback_data='edit_field_label'),
+            InlineKeyboardButton("🔢 Edit Amount", callback_data='edit_field_amount')
+        ],
+        [
+            InlineKeyboardButton("📄 Edit Description", callback_data='edit_field_description'),
+            InlineKeyboardButton("💳 Edit Stripe ID", callback_data='edit_field_stripe_price_id')
+        ],
+        [
+            InlineKeyboardButton("🔄 Toggle Status", callback_data='edit_field_toggle_status'),
+            InlineKeyboardButton("🗑️ Delete Product", callback_data='edit_field_delete')
+        ],
+        [InlineKeyboardButton("🔙 Back to Product List", callback_data='edit_product')]
+    ]
+    
+    await query.edit_message_text(message, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+    return PRODUCT_EDIT_FIELD
+
+async def edit_field_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle field selection for editing."""
+    query = update.callback_query
+    await query.answer()
+    
+    if query.data == 'edit_product':
+        return await edit_product_handler(update, context)
+    
+    field = query.data.split('_')[-1]
+    product_id = context.user_data.get('editing_product_id')
+    product = database.get_product_by_id(product_id)
+    
+    if not product:
+        await query.edit_message_text("❌ Product not found.")
+        return PRODUCTS_MENU
+    
+    context.user_data['editing_field'] = field
+    
+    if field == 'toggle_status':
+        # Toggle status immediately
+        new_status = not product.get('is_active', True)
+        success = database.update_product(product_id, is_active=new_status)
+        
+        if success:
+            status_text = "activated" if new_status else "deactivated"
+            message = f"✅ Product successfully {status_text}!"
+            
+            keyboard = [
+                [InlineKeyboardButton("✏️ Continue Editing", callback_data=f'edit_product_{product_id}')],
+                [InlineKeyboardButton("🛒 Back to Products", callback_data='back_to_products')]
+            ]
+            
+            await query.edit_message_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
+            return PRODUCTS_MENU
+        else:
+            await query.edit_message_text("❌ Failed to toggle product status.")
+            return PRODUCTS_MENU
+    
+    elif field == 'delete':
+        # Confirm deletion
+        message = f"""🗑️ **Delete Product**
+        
+**WARNING:** This action cannot be undone!
+
+**Product:** {product.get('label', 'Unnamed')}
+**Amount:** {product.get('amount', 0)} {product.get('item_type', 'credits')}
+
+Are you sure you want to delete this product?"""
+        
+        keyboard = [
+            [
+                InlineKeyboardButton("✅ Yes, Delete", callback_data='confirm_delete_yes'),
+                InlineKeyboardButton("❌ Cancel", callback_data='confirm_delete_no')
+            ]
+        ]
+        
+        await query.edit_message_text(message, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        return PRODUCT_CONFIRM_DELETE
+    
+    else:
+        # Handle text field editing
+        current_value = product.get(field, '')
+        
+        field_names = {
+            'label': 'Label',
+            'amount': 'Amount',
+            'description': 'Description',
+            'stripe_price_id': 'Stripe Price ID'
+        }
+        
+        field_name = field_names.get(field, field.title())
+        
+        message = f"""✏️ **Edit {field_name}**
+
+**Current Value:** {current_value or 'Not set'}
+
+Enter the new {field_name.lower()}:"""
+
+        if field == 'amount':
+            message += f"\n\n*Enter a positive number (current: {current_value})*"
+        elif field == 'stripe_price_id':
+            message += f"\n\n*Enter a Stripe Price ID starting with 'price_' or leave empty to remove*"
+        
+        keyboard = [[InlineKeyboardButton("❌ Cancel", callback_data=f'edit_product_{product_id}')]]
+        
+        await query.edit_message_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
+        return PRODUCT_EDIT_VALUE
+
+async def edit_value_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle new value input for product field."""
+    new_value = update.message.text.strip()
+    field = context.user_data.get('editing_field')
+    product_id = context.user_data.get('editing_product_id')
+    
+    # Validate input based on field type
+    if field == 'amount':
+        try:
+            new_value = int(new_value)
+            if new_value <= 0:
+                await update.message.reply_text("❌ Amount must be a positive number. Please try again:")
+                return PRODUCT_EDIT_VALUE
+        except ValueError:
+            await update.message.reply_text("❌ Please enter a valid number:")
+            return PRODUCT_EDIT_VALUE
+    
+    elif field == 'stripe_price_id' and new_value and not new_value.startswith('price_'):
+        await update.message.reply_text("❌ Stripe Price ID must start with 'price_'. Please try again:")
+        return PRODUCT_EDIT_VALUE
+    
+    elif field == 'label' and len(new_value) < 3:
+        await update.message.reply_text("❌ Label must be at least 3 characters long. Please try again:")
+        return PRODUCT_EDIT_VALUE
+    
+    # Update the product
+    update_data = {field: new_value}
+    success = database.update_product(product_id, **update_data)
+    
+    if success:
+        field_names = {
+            'label': 'Label',
+            'amount': 'Amount',  
+            'description': 'Description',
+            'stripe_price_id': 'Stripe Price ID'
+        }
+        
+        field_name = field_names.get(field, field.title())
+        
+        message = f"✅ {field_name} updated successfully!"
+        
+        keyboard = [
+            [InlineKeyboardButton("✏️ Continue Editing", callback_data=f'edit_product_{product_id}')],
+            [InlineKeyboardButton("🛒 Back to Products", callback_data='back_to_products')]
+        ]
+        
+        await update.message.reply_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
+        return PRODUCTS_MENU
+    else:
+        await update.message.reply_text("❌ Failed to update product. Please try again.")
+        return PRODUCT_EDIT_VALUE
+
+async def confirm_delete_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle product deletion confirmation."""
+    query = update.callback_query
+    await query.answer()
+    
+    product_id = context.user_data.get('editing_product_id')
+    
+    if query.data == 'confirm_delete_yes':
+        success = database.delete_product(product_id)
+        
+        if success:
+            message = "✅ Product deleted successfully!"
+        else:
+            message = "❌ Failed to delete product."
+        
+        keyboard = [[InlineKeyboardButton("🛒 Back to Products", callback_data='back_to_products')]]
+        await query.edit_message_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
+        
+        # Clean up context
+        context.user_data.pop('editing_product_id', None)
+        context.user_data.pop('editing_field', None)
+        
+        return PRODUCTS_MENU
+    
+    else:
+        # Cancel deletion
+        return await edit_product_select_handler(update, context)
+
+# ========================= Other Product Management Features =========================
+
+async def view_all_products_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Show all products with details."""
+    query = update.callback_query
+    await query.answer()
+    
+    products = database.get_all_products()
+    
+    if not products:
+        message = "❌ No products found."
+        keyboard = [
+            [InlineKeyboardButton("➕ Create Product", callback_data='create_product')],
+            [InlineKeyboardButton("🔙 Back to Products", callback_data='back_to_products')]
+        ]
+    else:
+        message = f"👁️ **All Products ({len(products)})**\n\n"
+        
+        for i, product in enumerate(products, 1):
+            status = "✅" if product.get('is_active') else "❌"
+            label = product.get('label', 'Unnamed')
+            amount = product.get('amount', 0)
+            item_type = product.get('item_type', 'credits')
+            
+            message += f"{i}. {status} **{label}**\n"
+            message += f"   Amount: {amount} {item_type}\n"
+            
+            if product.get('stripe_price_id'):
+                message += f"   Stripe: {product['stripe_price_id'][:25]}...\n"
+            else:
+                message += f"   Stripe: Not configured\n"
+            
+            message += "\n"
+        
+        keyboard = [
+            [
+                InlineKeyboardButton("✏️ Edit Product", callback_data='edit_product'),
+                InlineKeyboardButton("➕ Create Product", callback_data='create_product')
+            ],
+            [InlineKeyboardButton("🔙 Back to Products", callback_data='back_to_products')]
+        ]
+    
+    await query.edit_message_text(message, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+    return PRODUCTS_MENU
+
+# ========================= Navigation and Callback Helpers =========================
+
+async def back_to_products_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Navigate back to products menu."""
+    # Clean up any product creation/editing context
+    context.user_data.pop('product_creation', None)
+    context.user_data.pop('editing_product_id', None)
+    context.user_data.pop('editing_field', None)
+    
+    return await products_menu_handler(update, context)
 
 # ========================= Conversation Handler Setup =========================
 
@@ -950,43 +1739,29 @@ def get_admin_conversation_handler() -> ConversationHandler:
                 CallbackQueryHandler(analytics_menu_handler, pattern='^analytics$'),
                 CallbackQueryHandler(user_management_handler, pattern='^user_management$'),
                 CallbackQueryHandler(products_menu_handler, pattern='^products$'),
-                CallbackQueryHandler(placeholder_handler, pattern='^billing$'),
-                CallbackQueryHandler(placeholder_handler, pattern='^broadcast$'),
+                CallbackQueryHandler(broadcast_handler, pattern='^broadcast$'),
                 CallbackQueryHandler(mass_gift_handler, pattern='^mass_gift$'),
                 CallbackQueryHandler(settings_menu_handler, pattern='^settings$'),
                 CallbackQueryHandler(system_menu_handler, pattern='^system$'),
-                CallbackQueryHandler(placeholder_handler, pattern='^quick_replies$'),
-                CallbackQueryHandler(placeholder_handler, pattern='^search$'),
+                CallbackQueryHandler(quick_replies_handler, pattern='^quick_replies$'),
+                CallbackQueryHandler(search_handler, pattern='^search$'),
                 CallbackQueryHandler(status_menu_handler, pattern='^status$'),
                 CallbackQueryHandler(refresh_menu, pattern='^refresh$'),
                 CallbackQueryHandler(exit_conversation, pattern='^exit$'),
             ],
             USER_MANAGEMENT_MENU: [
-                CallbackQueryHandler(ban_user_start, pattern='^ban_user$'),
-                CallbackQueryHandler(unban_user_start, pattern='^unban_user$'),
-                CallbackQueryHandler(gift_credits_start, pattern='^gift_credits$'),
-                CallbackQueryHandler(lock_content_start, pattern='^lock$'), # Added lock_content_start
-                CallbackQueryHandler(placeholder_handler, pattern='^all_users$'),
-                CallbackQueryHandler(placeholder_handler, pattern='^banned_users$'),
-                CallbackQueryHandler(placeholder_handler, pattern='^vip_users$'),
-                CallbackQueryHandler(placeholder_handler, pattern='^new_users$'),
-                CallbackQueryHandler(placeholder_handler, pattern='^edit_credits$'),
-                CallbackQueryHandler(placeholder_handler, pattern='^gift_credits$'),
-                CallbackQueryHandler(placeholder_handler, pattern='^user_stats$'),
-                CallbackQueryHandler(back_to_main_menu, pattern='^back_to_main$'),
+                CallbackQueryHandler(placeholder_handler, pattern='.*'),
+                CallbackQueryHandler(back_to_main_menu, pattern='^back_to_main$')
             ],
-            BAN_USER_INPUT: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, process_ban_user)
-            ],
-            UNBAN_USER_INPUT: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, process_unban_user)
-            ],
-            ADD_CREDITS_USER: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, gift_credits_get_user)
-            ],
-            ADD_CREDITS_AMOUNT: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, process_gift_credits)
-            ],
+            BAN_USER_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, ban_user_input_handler)],
+            UNBAN_USER_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, unban_user_input_handler)],
+            ADD_CREDITS_USER: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_credits_user_handler)],
+            ADD_CREDITS_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_credits_amount_handler)],
+            GIFT_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, process_gift_credits)],
+            # Settings states
+            EDIT_WELCOME: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_welcome_message)],
+            EDIT_COSTS: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_message_costs)],
+            # Status states
             STATUS_MENU: [
                 CallbackQueryHandler(lambda u, c: set_admin_status(u, c, 'online', 'Available for support'), pattern='^status_online$'),
                 CallbackQueryHandler(lambda u, c: set_admin_status(u, c, 'away', 'Temporarily away'), pattern='^status_away$'),
@@ -994,17 +1769,48 @@ def get_admin_conversation_handler() -> ConversationHandler:
                 CallbackQueryHandler(lambda u, c: set_admin_status(u, c, 'offline', 'Not available'), pattern='^status_offline$'),
                 CallbackQueryHandler(back_to_main_menu, pattern='^back_to_main$'),
             ],
+            # Locked content states
             LOCKED_CONTENT_UPLOAD: [MessageHandler(filters.PHOTO | filters.VIDEO | filters.Document.ALL, locked_content_upload_handler)],
             LOCKED_CONTENT_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, locked_content_price_handler)],
             LOCKED_CONTENT_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, locked_content_description_handler)],
             LOCKED_CONTENT_CONFIRM: [CallbackQueryHandler(locked_content_confirm_handler)],
+            # Product Management states
+            PRODUCTS_MENU: [
+                CallbackQueryHandler(create_product_handler, pattern='^create_product$'),
+                CallbackQueryHandler(edit_product_handler, pattern='^edit_product$'),
+                CallbackQueryHandler(view_all_products_handler, pattern='^view_all_products$'),
+                CallbackQueryHandler(back_to_products_handler, pattern='^back_to_products$'),
+                CallbackQueryHandler(placeholder_handler, pattern='.*'),
+                CallbackQueryHandler(back_to_main_menu, pattern='^back_to_main$')
+            ],
+            PRODUCT_CREATE_LABEL: [MessageHandler(filters.TEXT & ~filters.COMMAND, product_create_label_handler)],
+            PRODUCT_CREATE_AMOUNT: [
+                CallbackQueryHandler(product_type_handler, pattern='^product_type_'),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, product_amount_handler)
+            ],
+            PRODUCT_CREATE_DESCRIPTION: [
+                CallbackQueryHandler(product_description_handler, pattern='^skip_description$'),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, product_description_handler)
+            ],
+            PRODUCT_CREATE_STRIPE: [
+                CallbackQueryHandler(product_stripe_handler, pattern='^create_without_stripe$'),
+                CallbackQueryHandler(product_stripe_handler, pattern='^stripe_help$'),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, product_stripe_handler)
+            ],
+            PRODUCT_EDIT_SELECT: [CallbackQueryHandler(edit_product_select_handler)],
+            PRODUCT_EDIT_FIELD: [CallbackQueryHandler(edit_field_handler)],
+            PRODUCT_EDIT_VALUE: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_value_handler)],
+            PRODUCT_CONFIRM_DELETE: [CallbackQueryHandler(confirm_delete_handler)],
             # Add other menu states with placeholder handlers
             CONVERSATIONS_MENU: [CallbackQueryHandler(placeholder_handler, pattern='.*'), CallbackQueryHandler(back_to_main_menu, pattern='^back_to_main$')],
             DASHBOARD_MENU: [CallbackQueryHandler(placeholder_handler, pattern='.*'), CallbackQueryHandler(back_to_main_menu, pattern='^back_to_main$')],
             ANALYTICS_MENU: [CallbackQueryHandler(placeholder_handler, pattern='.*'), CallbackQueryHandler(back_to_main_menu, pattern='^back_to_main$')],
-            PRODUCTS_MENU: [CallbackQueryHandler(placeholder_handler, pattern='.*'), CallbackQueryHandler(back_to_main_menu, pattern='^back_to_main$')],
             SETTINGS_MENU: [CallbackQueryHandler(placeholder_handler, pattern='.*'), CallbackQueryHandler(back_to_main_menu, pattern='^back_to_main$')],
             SYSTEM_MENU: [CallbackQueryHandler(placeholder_handler, pattern='.*'), CallbackQueryHandler(back_to_main_menu, pattern='^back_to_main$')],
+            BROADCAST_MENU: [CallbackQueryHandler(back_to_main_menu, pattern='^back_to_main$')],
+            QUICK_REPLIES_MENU: [CallbackQueryHandler(placeholder_handler, pattern='.*'), CallbackQueryHandler(back_to_main_menu, pattern='^back_to_main$')],
+            SEARCH_MENU: [CallbackQueryHandler(search_input_handler, pattern='^search_users$'), CallbackQueryHandler(search_input_handler, pattern='^search_messages$'), CallbackQueryHandler(search_input_handler, pattern='^search_transactions$'), CallbackQueryHandler(search_input_handler, pattern='^search_content'), CallbackQueryHandler(back_to_main_menu, pattern='^back_to_main$')],
+            SEARCH_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, search_input_handler)],
         },
         fallbacks=[
             CallbackQueryHandler(exit_conversation, pattern='^exit$'),

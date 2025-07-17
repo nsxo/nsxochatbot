@@ -535,6 +535,105 @@ def get_active_products() -> List[Dict[str, Any]]:
         logger.error(f"Error getting active products: {e}")
         return []
 
+def get_all_products() -> List[Dict[str, Any]]:
+    """Get all products from the database (active and inactive)."""
+    try:
+        query = """
+        SELECT *
+        FROM products
+        ORDER BY created_at DESC
+        """
+        return db_manager.execute_query(query, fetch_all=True)
+    except Exception as e:
+        logger.error(f"Error getting all products: {e}")
+        return []
+
+def create_product(label: str, amount: int, item_type: str, description: str = None, stripe_price_id: str = None) -> bool:
+    """Create a new product in the database."""
+    try:
+        query = """
+        INSERT INTO products (label, amount, item_type, description, stripe_price_id, is_active, created_at)
+        VALUES (%s, %s, %s, %s, %s, TRUE, CURRENT_TIMESTAMP)
+        """ if db_manager._db_type == 'postgresql' else """
+        INSERT INTO products (label, amount, item_type, description, stripe_price_id, is_active, created_at)
+        VALUES (?, ?, ?, ?, ?, 1, datetime('now'))
+        """
+        
+        db_manager.execute_query(query, (label, amount, item_type, description, stripe_price_id))
+        logger.info(f"Created new product: {label} ({amount} {item_type})")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error creating product: {e}")
+        return False
+
+def update_product(product_id: int, **kwargs) -> bool:
+    """Update a product in the database."""
+    try:
+        # Build dynamic UPDATE query based on provided kwargs
+        set_clauses = []
+        values = []
+        
+        for field, value in kwargs.items():
+            if field in ['label', 'amount', 'item_type', 'description', 'stripe_price_id', 'is_active']:
+                set_clauses.append(f"{field} = %s" if db_manager._db_type == 'postgresql' else f"{field} = ?")
+                values.append(value)
+        
+        if not set_clauses:
+            return False
+        
+        values.append(product_id)
+        
+        query = f"""
+        UPDATE products 
+        SET {', '.join(set_clauses)}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = %s
+        """ if db_manager._db_type == 'postgresql' else f"""
+        UPDATE products 
+        SET {', '.join(set_clauses)}, updated_at = datetime('now')
+        WHERE id = ?
+        """
+        
+        db_manager.execute_query(query, values)
+        logger.info(f"Updated product {product_id}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error updating product {product_id}: {e}")
+        return False
+
+def delete_product(product_id: int) -> bool:
+    """Delete a product from the database."""
+    try:
+        query = """
+        DELETE FROM products WHERE id = %s
+        """ if db_manager._db_type == 'postgresql' else """
+        DELETE FROM products WHERE id = ?
+        """
+        
+        db_manager.execute_query(query, (product_id,))
+        logger.info(f"Deleted product {product_id}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error deleting product {product_id}: {e}")
+        return False
+
+def get_product_by_id(product_id: int) -> Optional[Dict[str, Any]]:
+    """Get a specific product by ID."""
+    try:
+        query = """
+        SELECT * FROM products WHERE id = %s
+        """ if db_manager._db_type == 'postgresql' else """
+        SELECT * FROM products WHERE id = ?
+        """
+        
+        return db_manager.execute_query(query, (product_id,), fetch_one=True)
+        
+    except Exception as e:
+        logger.error(f"Error getting product {product_id}: {e}")
+        return None
+
 def get_stripe_customer_id(user_id: int) -> Optional[str]:
     """Get Stripe customer ID for a user."""
     try:
@@ -1686,3 +1785,97 @@ def ensure_default_data():
         initialize_default_data()
     except Exception as e:
         logger.error(f"Failed to ensure default data: {e}")
+
+# ========================= Search Functions =========================
+
+def search_users(query: str) -> List[Dict[str, Any]]:
+    """Search users by username, name, or ID."""
+    try:
+        search_query = f"%{query}%"
+        db_query = """
+        SELECT telegram_id, username, first_name, last_name, message_credits, created_at, is_banned
+        FROM users 
+        WHERE username ILIKE %s OR first_name ILIKE %s OR last_name ILIKE %s OR CAST(telegram_id AS TEXT) LIKE %s
+        ORDER BY created_at DESC
+        LIMIT 50
+        """ if db_manager._db_type == 'postgresql' else """
+        SELECT telegram_id, username, first_name, last_name, message_credits, created_at, is_banned
+        FROM users 
+        WHERE username LIKE ? OR first_name LIKE ? OR last_name LIKE ? OR CAST(telegram_id AS TEXT) LIKE ?
+        ORDER BY created_at DESC
+        LIMIT 50
+        """
+        results = db_manager.execute_query(db_query, (search_query, search_query, search_query, search_query), fetch_all=True)
+        return [dict(row) for row in results] if results else []
+    except Exception as e:
+        logger.error(f"Error searching users: {e}")
+        return []
+
+def search_messages(query: str) -> List[Dict[str, Any]]:
+    """Search message transactions."""
+    try:
+        search_query = f"%{query}%"
+        db_query = """
+        SELECT user_id, description, amount, created_at, transaction_type
+        FROM transactions 
+        WHERE description ILIKE %s AND transaction_type = 'message'
+        ORDER BY created_at DESC
+        LIMIT 50
+        """ if db_manager._db_type == 'postgresql' else """
+        SELECT user_id, description, amount, created_at, transaction_type
+        FROM transactions 
+        WHERE description LIKE ? AND transaction_type = 'message'
+        ORDER BY created_at DESC
+        LIMIT 50
+        """
+        results = db_manager.execute_query(db_query, (search_query,), fetch_all=True)
+        return [dict(row) for row in results] if results else []
+    except Exception as e:
+        logger.error(f"Error searching messages: {e}")
+        return []
+
+def search_transactions(query: str) -> List[Dict[str, Any]]:
+    """Search all transactions."""
+    try:
+        search_query = f"%{query}%"
+        db_query = """
+        SELECT user_id, amount, transaction_type, description, created_at
+        FROM transactions 
+        WHERE description ILIKE %s OR transaction_type ILIKE %s OR CAST(user_id AS TEXT) LIKE %s
+        ORDER BY created_at DESC
+        LIMIT 50
+        """ if db_manager._db_type == 'postgresql' else """
+        SELECT user_id, amount, transaction_type, description, created_at
+        FROM transactions 
+        WHERE description LIKE ? OR transaction_type LIKE ? OR CAST(user_id AS TEXT) LIKE ?
+        ORDER BY created_at DESC
+        LIMIT 50
+        """
+        results = db_manager.execute_query(db_query, (search_query, search_query, search_query), fetch_all=True)
+        return [dict(row) for row in results] if results else []
+    except Exception as e:
+        logger.error(f"Error searching transactions: {e}")
+        return []
+
+def search_locked_content(query: str) -> List[Dict[str, Any]]:
+    """Search locked content."""
+    try:
+        search_query = f"%{query}%"
+        db_query = """
+        SELECT id, content_type, description, price, created_at, is_active
+        FROM locked_content 
+        WHERE description ILIKE %s OR content_type ILIKE %s
+        ORDER BY created_at DESC
+        LIMIT 50
+        """ if db_manager._db_type == 'postgresql' else """
+        SELECT id, content_type, description, price, created_at, is_active
+        FROM locked_content 
+        WHERE description LIKE ? OR content_type LIKE ?
+        ORDER BY created_at DESC
+        LIMIT 50
+        """
+        results = db_manager.execute_query(db_query, (search_query, search_query), fetch_all=True)
+        return [dict(row) for row in results] if results else []
+    except Exception as e:
+        logger.error(f"Error searching locked content: {e}")
+        return []
