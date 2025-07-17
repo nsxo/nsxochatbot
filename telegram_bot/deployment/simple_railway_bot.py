@@ -31,8 +31,10 @@ logger = logging.getLogger(__name__)
 if __name__ == '__main__':
     logger.info("🚀 Launching bot in webhook mode for Railway...")
     try:
+        # Get the current event loop
+        loop = asyncio.get_event_loop()
         # Run the main async function from our refactored bot
-        asyncio.run(application_bot.main())
+        loop.run_until_complete(application_bot.main())
     except Exception as e:
         logger.critical(f"❌ Bot application failed to launch: {e}", exc_info=True)
         # Exit with a non-zero code to signal failure to Railway
