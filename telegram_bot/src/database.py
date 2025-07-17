@@ -745,3 +745,144 @@ def get_user_info(user_id: int) -> Optional[Dict[str, Any]]:
     except Exception as e:
         logger.error(f"Error getting user info for {user_id}: {e}")
         return None
+
+def get_active_conversations_count() -> int:
+    """Get count of active conversations (messages in last 24 hours)."""
+    try:
+        query = """
+        SELECT COUNT(DISTINCT user_id) 
+        FROM conversations 
+        WHERE last_message_at >= NOW() - INTERVAL '24 hours'
+        """ if db_manager._db_type == 'postgresql' else """
+        SELECT COUNT(DISTINCT user_id) 
+        FROM conversations 
+        WHERE last_message_at >= datetime('now', '-24 hours')
+        """
+        result = db_manager.execute_query(query, fetch_one=True)
+        return result[0] if result else 0
+    except Exception as e:
+        logger.error(f"Error getting active conversations count: {e}")
+        return 0
+
+def get_unread_messages_count() -> int:
+    """Get count of unread messages (placeholder - implement based on your logic)."""
+    # This would require additional message tracking
+    return 0
+
+def get_today_revenue() -> float:
+    """Get today's revenue."""
+    try:
+        query = """
+        SELECT COALESCE(SUM(amount), 0) 
+        FROM payment_logs 
+        WHERE DATE(created_at) = CURRENT_DATE
+        """ if db_manager._db_type == 'postgresql' else """
+        SELECT COALESCE(SUM(amount), 0) 
+        FROM payment_logs 
+        WHERE DATE(created_at) = DATE('now')
+        """
+        result = db_manager.execute_query(query, fetch_one=True)
+        return float(result[0]) if result else 0.0
+    except Exception as e:
+        logger.error(f"Error getting today's revenue: {e}")
+        return 0.0
+
+def get_today_new_users() -> int:
+    """Get count of new users today."""
+    try:
+        query = """
+        SELECT COUNT(*) 
+        FROM users 
+        WHERE DATE(created_at) = CURRENT_DATE
+        """ if db_manager._db_type == 'postgresql' else """
+        SELECT COUNT(*) 
+        FROM users 
+        WHERE DATE(created_at) = DATE('now')
+        """
+        result = db_manager.execute_query(query, fetch_one=True)
+        return result[0] if result else 0
+    except Exception as e:
+        logger.error(f"Error getting today's new users: {e}")
+        return 0
+
+def get_yesterday_new_users() -> int:
+    """Get count of new users yesterday."""
+    try:
+        query = """
+        SELECT COUNT(*) 
+        FROM users 
+        WHERE DATE(created_at) = CURRENT_DATE - INTERVAL '1 day'
+        """ if db_manager._db_type == 'postgresql' else """
+        SELECT COUNT(*) 
+        FROM users 
+        WHERE DATE(created_at) = DATE('now', '-1 day')
+        """
+        result = db_manager.execute_query(query, fetch_one=True)
+        return result[0] if result else 0
+    except Exception as e:
+        logger.error(f"Error getting yesterday's new users: {e}")
+        return 0
+
+def get_banned_users_list(limit: int = 50) -> List[Dict[str, Any]]:
+    """Get list of banned users."""
+    try:
+        query = """
+        SELECT telegram_id, username, first_name, ban_reason, updated_at
+        FROM users 
+        WHERE is_banned = TRUE
+        ORDER BY updated_at DESC
+        LIMIT %s
+        """ if db_manager._db_type == 'postgresql' else """
+        SELECT telegram_id, username, first_name, ban_reason, updated_at
+        FROM users 
+        WHERE is_banned = 1
+        ORDER BY updated_at DESC
+        LIMIT ?
+        """
+        return db_manager.execute_query(query, (limit,), fetch_all=True)
+    except Exception as e:
+        logger.error(f"Error getting banned users: {e}")
+        return []
+
+def get_vip_users_list(limit: int = 50) -> List[Dict[str, Any]]:
+    """Get list of VIP users (high credit balances)."""
+    try:
+        query = """
+        SELECT telegram_id, username, first_name, message_credits, created_at
+        FROM users 
+        WHERE message_credits >= 100
+        ORDER BY message_credits DESC
+        LIMIT %s
+        """ if db_manager._db_type == 'postgresql' else """
+        SELECT telegram_id, username, first_name, message_credits, created_at
+        FROM users 
+        WHERE message_credits >= 100
+        ORDER BY message_credits DESC
+        LIMIT ?
+        """
+        return db_manager.execute_query(query, (limit,), fetch_all=True)
+    except Exception as e:
+        logger.error(f"Error getting VIP users: {e}")
+        return []
+
+def broadcast_message_to_all_users(message: str, exclude_banned: bool = True) -> Dict[str, int]:
+    """Placeholder for broadcast functionality - returns success/failure counts."""
+    # This would be implemented with actual message sending logic
+    try:
+        query = """
+        SELECT COUNT(*) FROM users WHERE is_banned = FALSE
+        """ if exclude_banned else """
+        SELECT COUNT(*) FROM users
+        """
+        result = db_manager.execute_query(query, fetch_one=True)
+        total_users = result[0] if result else 0
+        
+        # Placeholder - in real implementation, you'd send messages here
+        return {
+            'total_users': total_users,
+            'sent': 0,  # Placeholder
+            'failed': 0  # Placeholder
+        }
+    except Exception as e:
+        logger.error(f"Error in broadcast: {e}")
+        return {'total_users': 0, 'sent': 0, 'failed': 0}
