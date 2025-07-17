@@ -295,6 +295,21 @@ def get_products():
             ])
         
         with conn.cursor() as cursor:
+            # First check if products table exists
+            cursor.execute("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_schema = 'public' 
+                    AND table_name = 'products'
+                )
+            """)
+            table_exists = cursor.fetchone()[0]
+            logger.info(f"Products table exists: {table_exists}")
+            
+            if not table_exists:
+                logger.error("Products table does not exist")
+                raise Exception("Products table not found")
+            
             cursor.execute("""
                 SELECT id, name, credits, description, price_cents, is_active, 
                        stripe_product_id, stripe_price_id
@@ -302,6 +317,7 @@ def get_products():
                 ORDER BY credits ASC
             """)
             products = cursor.fetchall()
+            logger.info(f"Found {len(products)} products")
             
         conn.close()
         

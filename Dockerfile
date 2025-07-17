@@ -30,6 +30,7 @@ COPY webapp/api/ ./api/
 COPY webapp/test_deployment.py ./
 COPY webapp/test_db_connection.py ./
 COPY webapp/init_database.py ./
+COPY webapp/debug_products.py ./
 
 # Copy built React app from builder stage
 COPY --from=builder /app/dist ./dist
@@ -37,5 +38,5 @@ COPY --from=builder /app/dist ./dist
 # Expose port (Railway will set PORT env var)
 EXPOSE 8000
 
-# Initialize database and start Flask API server
-CMD ["sh", "-c", "python init_database.py && python api/dashboard.py"] 
+# Initialize database, debug products, and start Flask API server
+CMD ["sh", "-c", "python init_database.py && python debug_products.py && python api/dashboard.py"] 
