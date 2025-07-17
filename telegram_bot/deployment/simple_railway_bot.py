@@ -29,7 +29,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def main():
+def main():
     """Performs startup checks and launches the bot application."""
     logger.info("🔬 Performing pre-flight health checks...")
 
@@ -41,13 +41,14 @@ async def main():
     logger.info("✅ Database health check successful.")
 
     logger.info("🚀 Launching bot application...")
-    await application_bot.main()
+    # Call the async main function directly - it will handle its own event loop
+    asyncio.run(application_bot.main())
 
 
 if __name__ == '__main__':
     try:
-        # Use asyncio.run() as the single entry point to the async world
-        asyncio.run(main())
+        # Call the synchronous main function
+        main()
     except Exception as e:
         logger.critical(f"❌ Bot application failed to launch: {e}", exc_info=True)
         # Exit with a non-zero code to signal failure to Railway
