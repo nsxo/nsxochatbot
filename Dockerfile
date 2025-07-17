@@ -1,4 +1,4 @@
-# Multi-stage build for webapp
+# Multi-stage build for webapp with API server
 FROM node:18-alpine as builder
 
 WORKDIR /app
@@ -11,19 +11,26 @@ RUN npm install
 COPY webapp/ ./
 RUN npm run build
 
-# Production stage
-FROM node:18-alpine as production
+# Production stage with Python and Node
+FROM python:3.11-alpine as production
 
 WORKDIR /app
 
-# Install serve globally
-RUN npm install -g serve
+# Install Node.js in the Python image
+RUN apk add --no-cache nodejs npm
 
-# Copy built app from builder stage
+# Install Python dependencies
+COPY webapp/api/requirements.txt ./
+RUN pip install -r requirements.txt
+
+# Copy API server
+COPY webapp/api/ ./api/
+
+# Copy built React app from builder stage
 COPY --from=builder /app/dist ./dist
 
 # Expose port (Railway will set PORT env var)
-EXPOSE 3000
+EXPOSE 8000
 
-# Start the application with dynamic port
-CMD sh -c "serve -s dist -l ${PORT:-3000}" 
+# Start the Flask API server (which also serves static files)
+CMD ["python", "api/dashboard.py"] 
