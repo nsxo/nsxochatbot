@@ -508,7 +508,28 @@ def is_user_banned(user_id: int) -> bool:
     try:
         query = "SELECT is_banned FROM users WHERE telegram_id = %s" if db_manager._db_type == 'postgresql' else "SELECT is_banned FROM users WHERE telegram_id = ?"
         result = db_manager.execute_query(query, (user_id,), fetch_one=True)
-        return result['is_banned'] if result else False
+        return result['is_banned'] if result and result['is_banned'] else False
     except Exception as e:
         logger.error(f"Error checking if user {user_id} is banned: {e}")
         return False
+
+def create_locked_content(content_type: str, file_id: str, price: int, created_by: int, description: str = None, thumbnail_file_id: str = None) -> int:
+    """Create a new piece of locked content."""
+    try:
+        query = """
+            INSERT INTO locked_content (content_type, file_id, price, created_by, description, thumbnail_file_id)
+            VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
+        """ if db_manager._db_type == 'postgresql' else """
+            INSERT INTO locked_content (content_type, file_id, price, created_by, description, thumbnail_file_id)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """
+        if db_manager._db_type == 'postgresql':
+            result = db_manager.execute_query(query, (content_type, file_id, price, created_by, description, thumbnail_file_id), fetch_one=True)
+            return result['id']
+        else:
+            # SQLite does not support RETURNING, so we get the last inserted rowid
+            cursor = db_manager.execute_query(query, (content_type, file_id, price, created_by, description, thumbnail_file_id))
+            return cursor.lastrowid
+    except Exception as e:
+        logger.error(f"Error creating locked content: {e}")
+        return 0

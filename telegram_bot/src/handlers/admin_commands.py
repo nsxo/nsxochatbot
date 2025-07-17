@@ -17,6 +17,8 @@ logger = logging.getLogger(__name__)
 ADMIN_MENU, SETTINGS_MENU, USER_MANAGEMENT = range(3)
 # Conversation states for settings submenu
 EDIT_WELCOME, EDIT_COSTS = range(3, 5)
+# Conversation states for locked content
+LOCKED_CONTENT_UPLOAD, LOCKED_CONTENT_PRICE, LOCKED_CONTENT_DESCRIPTION = range(5, 8)
 
 # ========================= Helper Functions =========================
 
@@ -116,6 +118,38 @@ async def exit_conversation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     await safe_reply(update, "Exiting admin panel.")
     return ConversationHandler.END
 
+# ========================= Locked Content Handlers =========================
+
+async def lock_content_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Starts the process of locking content for a user."""
+    if not is_admin(update): return ConversationHandler.END
+    await safe_reply(update, "Please upload the content (photo, video, etc.) you want to lock.")
+    return LOCKED_CONTENT_UPLOAD
+
+async def locked_content_upload_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handles the content upload for the lock feature."""
+    # Simplified logic to handle content upload
+    context.user_data['lock_content_data'] = {'file_id': update.message.photo[-1].file_id, 'type': 'photo'}
+    await safe_reply(update, "Content received. Now, please enter the price in credits.")
+    return LOCKED_CONTENT_PRICE
+
+async def locked_content_price_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handles the price setting for the locked content."""
+    try:
+        price = int(update.message.text)
+        content_data = context.user_data['lock_content_data']
+        content_id = database.create_locked_content(
+            content_type=content_data['type'],
+            file_id=content_data['file_id'],
+            price=price,
+            created_by=update.effective_user.id
+        )
+        await safe_reply(update, f"✅ Content locked with ID: {content_id} and price: {price} credits.")
+    except (ValueError, KeyError):
+        await safe_reply(update, "❌ Invalid price or content data. Please try again.")
+    
+    return ConversationHandler.END
+
 # ========================= Conversation Handler Setup =========================
 
 def get_admin_conversation_handler() -> ConversationHandler:
@@ -154,3 +188,15 @@ def get_admin_conversation_handler() -> ConversationHandler:
     )
     
     return main_admin_handler 
+
+def get_locked_content_handler() -> ConversationHandler:
+    """Create the conversation handler for locking content."""
+    return ConversationHandler(
+        entry_points=[CommandHandler("lock", lock_content_command)],
+        states={
+            LOCKED_CONTENT_UPLOAD: [MessageHandler(filters.ALL & ~filters.COMMAND, locked_content_upload_handler)],
+            LOCKED_CONTENT_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, locked_content_price_handler)],
+        },
+        fallbacks=[CommandHandler("cancel", exit_conversation)],
+        per_message=False
+    ) 

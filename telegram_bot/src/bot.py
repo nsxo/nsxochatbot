@@ -47,6 +47,7 @@ def main() -> None:
 
     # Admin commands
     application.add_handler(admin_commands.get_admin_conversation_handler())
+    application.add_handler(admin_commands.get_locked_content_handler())
 
     # Master message handler
     application.add_handler(MessageHandler(
