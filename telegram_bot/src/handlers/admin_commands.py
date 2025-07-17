@@ -72,9 +72,36 @@ async def settings_menu_handler(update: Update, context: ContextTypes.DEFAULT_TY
     return SETTINGS_MENU
 
 async def user_management_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Placeholder for user management."""
-    await safe_reply(update, "👥 User management coming soon.", parse_mode='Markdown')
-    return ADMIN_MENU
+    """Enhanced user management with actual functionality."""
+    if not is_admin(update):
+        await safe_reply(update, "❌ Admin access required.")
+        return ConversationHandler.END
+
+    users = database.get_all_users(limit=10)  # Get first 10 users
+    total_stats = database.get_user_stats()
+    
+    if not users:
+        await safe_reply(update, "👥 No users found in the database.")
+        return ADMIN_MENU
+    
+    user_list = []
+    for user in users:
+        status = "🚫 BANNED" if user.get('is_banned') else "✅ Active"
+        credits = user.get('message_credits', 0)
+        username = user.get('username', 'No username')
+        user_list.append(f"• @{username} (ID: {user['telegram_id']}) - {credits} credits - {status}")
+    
+    message = f"👥 *User Management*\n\n📊 *Statistics:*\n- Total Users: {total_stats.get('total_users', 0)}\n- Banned Users: {total_stats.get('banned_users', 0)}\n\n👤 *Recent Users (Last 10):*\n" + "\n".join(user_list[:10])
+    
+    keyboard = [
+        [InlineKeyboardButton("🚫 Ban User", callback_data="ban_user")],
+        [InlineKeyboardButton("✅ Unban User", callback_data="unban_user")],
+        [InlineKeyboardButton("💰 Add Credits", callback_data="add_credits")],
+        [InlineKeyboardButton("🔙 Back to Menu", callback_data="admin_menu")]
+    ]
+    
+    await safe_reply(update, message, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+    return USER_MANAGEMENT
 
 # ========================= Settings Sub-Menu Handlers =========================
 
