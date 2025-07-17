@@ -35,5 +35,5 @@ COPY --from=builder /app/dist ./dist
 # Expose port (Railway will set PORT env var)
 EXPOSE 8000
 
-# Start the test Flask API server for debugging
-CMD ["python", "test_deployment.py"] 
+# Start the Flask API server (which also serves static files)
+CMD ["python", "api/dashboard.py"] 

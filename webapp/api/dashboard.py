@@ -51,13 +51,25 @@ def get_db_connection():
 def health_check():
     """Health check endpoint."""
     db_status = "connected" if get_db_connection() else "disconnected"
+    
+    # Check for dist directory
+    dist_paths = ['dist', '../dist', './dist']
+    dist_found = None
+    for path in dist_paths:
+        if os.path.exists(path):
+            dist_found = path
+            break
+    
     return jsonify({
         'status': 'healthy', 
         'timestamp': datetime.now().isoformat(),
         'database': db_status,
         'environment': os.getenv('RAILWAY_ENVIRONMENT', 'unknown'),
         'has_postgres': HAS_POSTGRES,
-        'database_url_configured': bool(DATABASE_URL)
+        'database_url_configured': bool(DATABASE_URL),
+        'working_directory': os.getcwd(),
+        'dist_directory_found': dist_found,
+        'available_files': os.listdir('.') if os.path.exists('.') else []
     })
 
 @app.route('/api/dashboard/stats')
