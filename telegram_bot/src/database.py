@@ -522,25 +522,114 @@ def is_user_banned(user_id: int) -> bool:
         return False
 
 def create_locked_content(content_type: str, file_id: str, price: int, created_by: int, description: str = None, thumbnail_file_id: str = None) -> int:
-    """Create a new piece of locked content."""
+    """Create a new locked content item."""
     try:
         query = """
-            INSERT INTO locked_content (content_type, file_id, price, created_by, description, thumbnail_file_id)
-            VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
+        INSERT INTO locked_content (content_type, file_id, price, created_by, description, thumbnail_file_id)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        RETURNING id
         """ if db_manager._db_type == 'postgresql' else """
-            INSERT INTO locked_content (content_type, file_id, price, created_by, description, thumbnail_file_id)
-            VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO locked_content (content_type, file_id, price, created_by, description, thumbnail_file_id)
+        VALUES (?, ?, ?, ?, ?, ?)
         """
+        
         if db_manager._db_type == 'postgresql':
             result = db_manager.execute_query(query, (content_type, file_id, price, created_by, description, thumbnail_file_id), fetch_one=True)
-            return result['id']
+            return result['id'] if result else 0
         else:
-            # SQLite does not support RETURNING, so we get the last inserted rowid
-            cursor = db_manager.execute_query(query, (content_type, file_id, price, created_by, description, thumbnail_file_id))
-            return cursor.lastrowid
+            # SQLite does not support RETURNING, so we get the last inserted ID
+            rowcount = db_manager.execute_query(query, (content_type, file_id, price, created_by, description, thumbnail_file_id))
+            if rowcount > 0:
+                return db_manager.execute_query("SELECT last_insert_rowid()", fetch_one=True)[0]
+            return 0
+            
     except Exception as e:
         logger.error(f"Error creating locked content: {e}")
         return 0
+
+# ========================= Locked Content Functions =========================
+
+async def get_locked_content(content_id: int) -> Optional[Dict[str, Any]]:
+    """Get locked content by ID."""
+    conn = await get_db_connection()
+    if not conn:
+        return None
+    
+    try:
+        result = await conn.fetchrow(
+            "SELECT * FROM locked_content WHERE id = $1 AND is_active = true",
+            content_id
+        )
+        return dict(result) if result else None
+    except Exception as e:
+        logger.error(f"Error getting locked content: {e}")
+        return None
+    finally:
+        await conn.close()
+
+async def has_user_purchased_content(user_id: int, content_id: int) -> bool:
+    """Check if user has already purchased specific content."""
+    conn = await get_db_connection()
+    if not conn:
+        return False
+    
+    try:
+        result = await conn.fetchval(
+            "SELECT EXISTS(SELECT 1 FROM content_purchases WHERE user_id = $1 AND content_id = $2)",
+            user_id, content_id
+        )
+        return bool(result)
+    except Exception as e:
+        logger.error(f"Error checking content purchase: {e}")
+        return False
+    finally:
+        await conn.close()
+
+async def purchase_locked_content(user_id: int, content_id: int, price: int) -> bool:
+    """Process purchase of locked content."""
+    conn = await get_db_connection()
+    if not conn:
+        return False
+    
+    try:
+        async with conn.transaction():
+            # Check user balance
+            balance = await conn.fetchval(
+                "SELECT credits FROM users WHERE user_id = $1",
+                user_id
+            )
+            
+            if balance is None or balance < price:
+                return False
+            
+            # Deduct credits
+            await conn.execute(
+                "UPDATE users SET credits = credits - $1 WHERE user_id = $2",
+                price, user_id
+            )
+            
+            # Record purchase
+            await conn.execute(
+                """INSERT INTO content_purchases (user_id, content_id, price_paid, purchased_at)
+                   VALUES ($1, $2, $3, NOW())""",
+                user_id, content_id, price
+            )
+            
+            # Add transaction record
+            await conn.execute(
+                """INSERT INTO transactions (user_id, amount, transaction_type, description, created_at)
+                   VALUES ($1, $2, 'content_purchase', $3, NOW())""",
+                user_id, -price, f"Purchased content #{content_id}"
+            )
+            
+            return True
+    except Exception as e:
+        logger.error(f"Error purchasing content: {e}")
+        return False
+    finally:
+        await conn.close()
+
+# ========================= Existing Functions =========================
 
 def get_all_users(limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
     """Get paginated list of all users."""
@@ -1075,3 +1164,332 @@ def update_low_balance_notification_status(user_id: int) -> None:
         db_manager.execute_query(query, (user_id,))
     except Exception as e:
         logger.error(f"Error updating low balance notification status for user {user_id}: {e}")
+
+def get_user_tier(user_id: int) -> str:
+    """Get the user's tier based on their credit balance."""
+    credits = get_user_credits_optimized(user_id)
+    if credits >= 100:
+        return 'VIP'
+    elif credits >= 50:
+        return 'Regular'
+    else:
+        return 'New'
+
+def apply_tier_discount(cost: int, tier: str) -> int:
+    """Apply a discount based on the user's tier."""
+    if tier == 'VIP':
+        # 20% discount for VIP users
+        return int(cost * 0.8)
+    elif tier == 'Regular':
+        # 10% discount for Regular users
+        return int(cost * 0.9)
+    else:
+        return cost
+
+# ========================= Locked Content Functions =========================
+
+async def get_locked_content(content_id: int) -> Optional[Dict[str, Any]]:
+    """Get locked content by ID."""
+    conn = await get_db_connection()
+    if not conn:
+        return None
+    
+    try:
+        result = await conn.fetchrow(
+            "SELECT * FROM locked_content WHERE id = $1 AND is_active = true",
+            content_id
+        )
+        return dict(result) if result else None
+    except Exception as e:
+        logger.error(f"Error getting locked content: {e}")
+        return None
+    finally:
+        await conn.close()
+
+async def has_user_purchased_content(user_id: int, content_id: int) -> bool:
+    """Check if user has already purchased specific content."""
+    conn = await get_db_connection()
+    if not conn:
+        return False
+    
+    try:
+        result = await conn.fetchval(
+            "SELECT EXISTS(SELECT 1 FROM content_purchases WHERE user_id = $1 AND content_id = $2)",
+            user_id, content_id
+        )
+        return bool(result)
+    except Exception as e:
+        logger.error(f"Error checking content purchase: {e}")
+        return False
+    finally:
+        await conn.close()
+
+async def purchase_locked_content(user_id: int, content_id: int, price: int) -> bool:
+    """Process purchase of locked content."""
+    conn = await get_db_connection()
+    if not conn:
+        return False
+    
+    try:
+        async with conn.transaction():
+            # Check user balance
+            balance = await conn.fetchval(
+                "SELECT credits FROM users WHERE user_id = $1",
+                user_id
+            )
+            
+            if balance is None or balance < price:
+                return False
+            
+            # Deduct credits
+            await conn.execute(
+                "UPDATE users SET credits = credits - $1 WHERE user_id = $2",
+                price, user_id
+            )
+            
+            # Record purchase
+            await conn.execute(
+                """INSERT INTO content_purchases (user_id, content_id, price_paid, purchased_at)
+                   VALUES ($1, $2, $3, NOW())""",
+                user_id, content_id, price
+            )
+            
+            # Add transaction record
+            await conn.execute(
+                """INSERT INTO transactions (user_id, amount, transaction_type, description, created_at)
+                   VALUES ($1, $2, 'content_purchase', $3, NOW())""",
+                user_id, -price, f"Purchased content #{content_id}"
+            )
+            
+            return True
+    except Exception as e:
+        logger.error(f"Error purchasing content: {e}")
+        return False
+    finally:
+        await conn.close()
+
+def get_user_balance(user_id: int) -> int:
+    """Get user's current credit balance (synchronous version for compatibility)."""
+    return get_user_credits_optimized(user_id)
+
+def get_all_user_ids() -> List[int]:
+    """Get all user IDs."""
+    try:
+        query = "SELECT telegram_id FROM users"
+        results = db_manager.execute_query(query, fetch_all=True)
+        return [row[0] for row in results] if results else []
+    except Exception as e:
+        logger.error(f"Error getting all user IDs: {e}")
+        return []
+
+def get_new_user_ids(days: int = 7) -> List[int]:
+    """Get user IDs for users who joined in the last N days."""
+    try:
+        query = """
+        SELECT telegram_id 
+        FROM users 
+        WHERE created_at >= NOW() - INTERVAL %s DAY
+        """ if db_manager._db_type == 'postgresql' else """
+        SELECT telegram_id 
+        FROM users 
+        WHERE created_at >= datetime('now', '-%s days')
+        """
+        results = db_manager.execute_query(query, (days,), fetch_all=True)
+        return [row[0] for row in results] if results else []
+    except Exception as e:
+        logger.error(f"Error getting new user IDs: {e}")
+        return []
+
+def get_active_user_ids(days: int = 30) -> List[int]:
+    """Get user IDs for users who were active in the last N days."""
+    try:
+        query = """
+        SELECT DISTINCT telegram_id 
+        FROM users 
+        WHERE last_interaction >= NOW() - INTERVAL %s DAY
+        """ if db_manager._db_type == 'postgresql' else """
+        SELECT DISTINCT telegram_id 
+        FROM users 
+        WHERE last_interaction >= datetime('now', '-%s days')
+        """
+        results = db_manager.execute_query(query, (days,), fetch_all=True)
+        return [row[0] for row in results] if results else []
+    except Exception as e:
+        logger.error(f"Error getting active user IDs: {e}")
+        return []
+
+def get_active_users_count(days: int = 30) -> int:
+    """Get count of active users in the last N days."""
+    try:
+        query = """
+        SELECT COUNT(DISTINCT telegram_id) 
+        FROM users 
+        WHERE last_interaction >= NOW() - INTERVAL %s DAY
+        """ if db_manager._db_type == 'postgresql' else """
+        SELECT COUNT(DISTINCT telegram_id) 
+        FROM users 
+        WHERE last_interaction >= datetime('now', '-%s days')
+        """
+        result = db_manager.execute_query(query, (days,), fetch_one=True)
+        return result[0] if result else 0
+    except Exception as e:
+        logger.error(f"Error getting active users count: {e}")
+        return 0
+
+# ========================= Quick Replies Functions =========================
+
+def get_quick_reply(keyword: str) -> Optional[str]:
+    """Get quick reply response by keyword."""
+    try:
+        query = """
+        SELECT response FROM quick_replies 
+        WHERE keyword = %s AND is_active = true
+        """ if db_manager._db_type == 'postgresql' else """
+        SELECT response FROM quick_replies 
+        WHERE keyword = ? AND is_active = 1
+        """
+        result = db_manager.execute_query(query, (keyword,), fetch_one=True)
+        return result[0] if result else None
+    except Exception as e:
+        logger.error(f"Error getting quick reply: {e}")
+        return None
+
+def get_all_quick_replies() -> List[Dict[str, Any]]:
+    """Get all quick replies."""
+    try:
+        query = """
+        SELECT id, keyword, response, is_active, created_at, updated_at 
+        FROM quick_replies ORDER BY keyword
+        """
+        results = db_manager.execute_query(query, fetch_all=True)
+        return [dict(row) for row in results] if results else []
+    except Exception as e:
+        logger.error(f"Error getting quick replies: {e}")
+        return []
+
+def add_quick_reply(keyword: str, response: str) -> bool:
+    """Add a new quick reply."""
+    try:
+        query = """
+        INSERT INTO quick_replies (keyword, response) 
+        VALUES (%s, %s)
+        """ if db_manager._db_type == 'postgresql' else """
+        INSERT INTO quick_replies (keyword, response) 
+        VALUES (?, ?)
+        """
+        db_manager.execute_query(query, (keyword, response))
+        return True
+    except Exception as e:
+        logger.error(f"Error adding quick reply: {e}")
+        return False
+
+def update_quick_reply(reply_id: int, keyword: str, response: str) -> bool:
+    """Update an existing quick reply."""
+    try:
+        query = """
+        UPDATE quick_replies 
+        SET keyword = %s, response = %s, updated_at = CURRENT_TIMESTAMP 
+        WHERE id = %s
+        """ if db_manager._db_type == 'postgresql' else """
+        UPDATE quick_replies 
+        SET keyword = ?, response = ?, updated_at = datetime('now') 
+        WHERE id = ?
+        """
+        db_manager.execute_query(query, (keyword, response, reply_id))
+        return True
+    except Exception as e:
+        logger.error(f"Error updating quick reply: {e}")
+        return False
+
+def delete_quick_reply(reply_id: int) -> bool:
+    """Delete a quick reply."""
+    try:
+        query = "DELETE FROM quick_replies WHERE id = %s" if db_manager._db_type == 'postgresql' else "DELETE FROM quick_replies WHERE id = ?"
+        db_manager.execute_query(query, (reply_id,))
+        return True
+    except Exception as e:
+        logger.error(f"Error deleting quick reply: {e}")
+        return False
+
+def toggle_quick_reply_status(reply_id: int) -> bool:
+    """Toggle quick reply active status."""
+    try:
+        query = """
+        UPDATE quick_replies 
+        SET is_active = NOT is_active, updated_at = CURRENT_TIMESTAMP 
+        WHERE id = %s
+        """ if db_manager._db_type == 'postgresql' else """
+        UPDATE quick_replies 
+        SET is_active = NOT is_active, updated_at = datetime('now') 
+        WHERE id = ?
+        """
+        db_manager.execute_query(query, (reply_id,))
+        return True
+    except Exception as e:
+        logger.error(f"Error toggling quick reply status: {e}")
+        return False
+
+# ========================= Auto-Recharge Functions =========================
+
+def get_user_auto_recharge_settings(user_id: int) -> Optional[Dict[str, Any]]:
+    """Get user's auto-recharge settings."""
+    try:
+        query = """
+        SELECT auto_recharge_enabled as enabled, auto_recharge_amount as amount, auto_recharge_threshold as threshold
+        FROM users WHERE telegram_id = %s
+        """ if db_manager._db_type == 'postgresql' else """
+        SELECT auto_recharge_enabled as enabled, auto_recharge_amount as amount, auto_recharge_threshold as threshold
+        FROM users WHERE telegram_id = ?
+        """
+        result = db_manager.execute_query(query, (user_id,), fetch_one=True)
+        if result:
+            return {
+                'enabled': bool(result[0]),
+                'amount': result[1] or 10,
+                'threshold': result[2] or 5
+            }
+        return None
+    except Exception as e:
+        logger.error(f"Error getting auto-recharge settings: {e}")
+        return None
+
+async def process_auto_recharge(user_id: int, amount: int) -> bool:
+    """Process automatic recharge for a user."""
+    try:
+        # For now, just add credits (in real implementation, this would charge payment method)
+        success = add_user_credits(user_id, amount)
+        if success:
+            # Log the auto-recharge transaction
+            try:
+                query = """
+                INSERT INTO transactions (user_id, amount, transaction_type, description, created_at)
+                VALUES (%s, %s, 'auto_recharge', %s, NOW())
+                """ if db_manager._db_type == 'postgresql' else """
+                INSERT INTO transactions (user_id, amount, transaction_type, description, created_at)
+                VALUES (?, ?, 'auto_recharge', ?, datetime('now'))
+                """
+                db_manager.execute_query(query, (user_id, amount, f"Auto-recharge: {amount} credits"))
+            except Exception as e:
+                logger.warning(f"Failed to log auto-recharge transaction: {e}")
+        return success
+    except Exception as e:
+        logger.error(f"Error processing auto-recharge: {e}")
+        return False
+
+def update_user_auto_recharge_settings(user_id: int, enabled: bool, amount: int = 10, threshold: int = 5) -> bool:
+    """Update user's auto-recharge settings."""
+    try:
+        query = """
+        UPDATE users 
+        SET auto_recharge_enabled = %s, auto_recharge_amount = %s, auto_recharge_threshold = %s, updated_at = CURRENT_TIMESTAMP 
+        WHERE telegram_id = %s
+        """ if db_manager._db_type == 'postgresql' else """
+        UPDATE users 
+        SET auto_recharge_enabled = ?, auto_recharge_amount = ?, auto_recharge_threshold = ?, updated_at = datetime('now') 
+        WHERE telegram_id = ?
+        """
+        db_manager.execute_query(query, (enabled, amount, threshold, user_id))
+        return True
+    except Exception as e:
+        logger.error(f"Error updating auto-recharge settings: {e}")
+        return False

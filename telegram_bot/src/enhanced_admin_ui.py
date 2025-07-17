@@ -368,6 +368,87 @@ To test the system:
     
     await safe_reply(update, message, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
 
+async def buy_content_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Starts the process of buying locked content."""
+    args = context.args
+    if not args:
+        await safe_reply(update, "Please provide a content ID. Usage: /buy_content <ID>")
+        return
+    
+    try:
+        content_id = int(args[0])
+        content = database.get_locked_content(content_id)
+        
+        if not content or not content['is_active']:
+            await safe_reply(update, "❌ Invalid or unavailable content ID.")
+            return
+
+        price = content['price']
+        description = content['description']
+        user_credits = database.get_user_credits_optimized(update.effective_user.id)
+        
+        message = f"""🖼️ **Premium Content**
+
+**Description:** {description}
+**Price:** {price} credits
+
+Your current balance is {user_credits} credits.
+
+Do you want to purchase this content?"""
+
+        keyboard = [
+            [
+                InlineKeyboardButton(f"✅ Yes, buy for {price} credits", callback_data=f"purchase_{content_id}"),
+                InlineKeyboardButton("❌ No, cancel", callback_data="cancel_purchase")
+            ]
+        ]
+        
+        await safe_reply(update, message, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        
+    except ValueError:
+        await safe_reply(update, "❌ Invalid content ID. Please provide a valid number.")
+
+async def handle_content_purchase(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handles the purchase of locked content."""
+    query = update.callback_query
+    await query.answer()
+
+    content_id = int(query.data.split("_")[1])
+    user_id = query.from_user.id
+
+    content = database.get_locked_content(content_id)
+    if not content:
+        await query.edit_message_text("❌ This content is no longer available.")
+        return
+
+    price = content['price']
+    user_credits = database.get_user_credits_optimized(user_id)
+
+    if user_credits < price:
+        await query.edit_message_text(f"❌ Insufficient credits. You need {price} credits, but only have {user_credits}. Please /buy more.")
+        return
+
+    # Deduct credits and send content
+    new_balance = database.decrement_user_credits_optimized(user_id, price)
+    
+    await query.edit_message_text(f"✅ Purchase successful! Your new balance is {new_balance} credits.")
+    
+    # Send the locked content to the user
+    content_type = content['content_type']
+    file_id = content['file_id']
+    caption = content['description']
+    
+    try:
+        if content_type == 'photo':
+            await context.bot.send_photo(chat_id=user_id, photo=file_id, caption=caption)
+        elif content_type == 'video':
+            await context.bot.send_video(chat_id=user_id, video=file_id, caption=caption)
+        elif content_type == 'document':
+            await context.bot.send_document(chat_id=user_id, document=file_id, caption=caption)
+    except Exception as e:
+        logger.error(f"Error sending locked content {content_id} to user {user_id}: {e}")
+        await query.message.reply_text("⚠️ There was an error sending the content. Please contact support.")
+
 # ========================= Enhanced Visual Components =========================
 
 def format_user_tier(credits: int) -> tuple[str, str]:
@@ -403,6 +484,7 @@ def get_enhanced_admin_commands() -> List[CommandHandler]:
         CommandHandler("users", users_command),
         CommandHandler("settings", settings_command),
         CommandHandler("topic_status", topic_status_command),  # Add topic status command
+        CommandHandler("buy_content", buy_content_command),
     ] 
 
 def get_enhanced_user_commands() -> List[CommandHandler]:

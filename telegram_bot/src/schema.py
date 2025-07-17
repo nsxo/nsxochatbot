@@ -29,7 +29,12 @@ def get_schema_queries() -> List[str]:
             last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             is_banned BOOLEAN DEFAULT FALSE,
             ban_reason TEXT,
-            last_low_balance_notification TIMESTAMP
+            last_low_balance_notification TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            auto_recharge_enabled BOOLEAN DEFAULT false,
+            auto_recharge_amount INTEGER DEFAULT 10,
+            auto_recharge_threshold INTEGER DEFAULT 5
         )
         """,
         """
@@ -70,6 +75,19 @@ def get_schema_queries() -> List[str]:
         )
         """,
         """
+        CREATE TABLE IF NOT EXISTS locked_content (
+            id SERIAL PRIMARY KEY,
+            content_type VARCHAR(50) NOT NULL,
+            file_id VARCHAR(255) NOT NULL,
+            price INTEGER NOT NULL,
+            description TEXT,
+            created_by BIGINT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            is_active BOOLEAN DEFAULT TRUE,
+            thumbnail_file_id VARCHAR(255)
+        )
+        """,
+        """
         CREATE TABLE IF NOT EXISTS payment_logs (
             id SERIAL PRIMARY KEY,
             telegram_id BIGINT NOT NULL,
@@ -89,6 +107,16 @@ def get_schema_queries() -> List[str]:
             threshold INTEGER DEFAULT 5,
             amount INTEGER DEFAULT 25,
             monthly_limit DECIMAL(10,2) DEFAULT 100.00,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS quick_replies (
+            id SERIAL PRIMARY KEY,
+            keyword VARCHAR(100) UNIQUE NOT NULL,
+            response TEXT NOT NULL,
+            is_active BOOLEAN DEFAULT true,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )

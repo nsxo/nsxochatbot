@@ -61,7 +61,9 @@ async def main() -> None:
     application.add_handler(CommandHandler("balance", user_commands.balance_command))
     application.add_handler(CommandHandler("help", user_commands.help_command))
     application.add_handler(CommandHandler("buy", user_commands.buy_command))
+    application.add_handler(CommandHandler("buy_content", admin_commands.buy_content_command))
     application.add_handler(CallbackQueryHandler(user_commands.button_handler))
+    application.add_handler(CallbackQueryHandler(admin_commands.handle_content_purchase, pattern=r"^purchase_"))
     
     # Register enhanced admin commands
     for handler in enhanced_admin_ui.get_enhanced_admin_commands():

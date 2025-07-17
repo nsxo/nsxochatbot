@@ -23,7 +23,8 @@ logger = logging.getLogger(__name__)
 
 # Sub-states for specific operations
 (EDIT_WELCOME, EDIT_COSTS, BAN_USER_INPUT, UNBAN_USER_INPUT, ADD_CREDITS_USER, 
- ADD_CREDITS_AMOUNT, BROADCAST_MESSAGE, GIFT_AMOUNT, SEARCH_INPUT, STATUS_INPUT) = range(14, 24)
+ ADD_CREDITS_AMOUNT, BROADCAST_MESSAGE, GIFT_AMOUNT, SEARCH_INPUT, STATUS_INPUT,
+ LOCKED_CONTENT_UPLOAD, LOCKED_CONTENT_PRICE, LOCKED_CONTENT_DESCRIPTION, LOCKED_CONTENT_CONFIRM) = range(14, 28)
 
 # Admin status tracking
 admin_status = {
@@ -544,6 +545,284 @@ async def process_gift_credits(update: Update, context: ContextTypes.DEFAULT_TYP
     del context.user_data['gift_credits']
     return await user_management_handler(update, context)
 
+# ========================= Locked Content System =========================
+
+async def lock_content_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Start the process of creating locked content."""
+    if not is_admin(update):
+        await update.message.reply_text("❌ Admin access required.")
+        return ConversationHandler.END
+    
+    await update.message.reply_text(
+        "🔒 **Locked Content Creation**\n\n"
+        "Upload the content you want to lock (photo, video, or document).\n"
+        "Users will need to purchase access to view this content.\n\n"
+        "Send /cancel to abort."
+    )
+    return LOCKED_CONTENT_UPLOAD
+
+async def locked_content_upload_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle content upload for locked content."""
+    message = update.message
+    
+    # Store content info
+    if message.photo:
+        context.user_data['content_type'] = 'photo'
+        context.user_data['file_id'] = message.photo[-1].file_id
+        content_info = "📸 Photo"
+    elif message.video:
+        context.user_data['content_type'] = 'video'
+        context.user_data['file_id'] = message.video.file_id
+        content_info = f"🎥 Video ({message.video.duration}s)"
+    elif message.document:
+        context.user_data['content_type'] = 'document'
+        context.user_data['file_id'] = message.document.file_id
+        content_info = f"📄 {message.document.file_name or 'Document'}"
+    else:
+        await message.reply_text("❌ Please send a photo, video, or document.")
+        return LOCKED_CONTENT_UPLOAD
+    
+    context.user_data['content_info'] = content_info
+    
+    await message.reply_text(
+        f"✅ Content received: {content_info}\n\n"
+        "💰 Now set the price for this content (in credits).\n"
+        "Enter a number (e.g., 5, 10, 25):"
+    )
+    return LOCKED_CONTENT_PRICE
+
+async def locked_content_price_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle price setting for locked content."""
+    try:
+        price = int(update.message.text.strip())
+        if price <= 0:
+            raise ValueError("Price must be positive")
+        
+        context.user_data['price'] = price
+        
+        await update.message.reply_text(
+            f"💰 Price set: {price} credits\n\n"
+            "📝 Now provide a description for this content.\n"
+            "This will be shown to users before they purchase:"
+        )
+        return LOCKED_CONTENT_DESCRIPTION
+        
+    except ValueError:
+        await update.message.reply_text(
+            "❌ Invalid price. Please enter a positive number (e.g., 5, 10, 25):"
+        )
+        return LOCKED_CONTENT_PRICE
+
+async def locked_content_description_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle description setting for locked content."""
+    description = update.message.text.strip()
+    
+    if len(description) > 200:
+        await update.message.reply_text(
+            "❌ Description too long. Please keep it under 200 characters:"
+        )
+        return LOCKED_CONTENT_DESCRIPTION
+    
+    context.user_data['description'] = description
+    
+    # Show confirmation
+    content_info = context.user_data.get('content_info', 'Unknown')
+    price = context.user_data.get('price', 0)
+    
+    keyboard = [
+        [InlineKeyboardButton("✅ Create Locked Content", callback_data="confirm_create")],
+        [InlineKeyboardButton("❌ Cancel", callback_data="cancel_create")]
+    ]
+    
+    await update.message.reply_text(
+        f"🔒 **Locked Content Preview**\n\n"
+        f"**Content:** {content_info}\n"
+        f"**Price:** {price} credits\n"
+        f"**Description:** {description}\n\n"
+        "Confirm creation?",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+    return LOCKED_CONTENT_CONFIRM
+
+async def locked_content_confirm_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle confirmation of locked content creation."""
+    query = update.callback_query
+    await query.answer()
+    
+    if query.data == "cancel_create":
+        await query.edit_message_text("❌ Locked content creation cancelled.")
+        return ConversationHandler.END
+    
+    if query.data == "confirm_create":
+        try:
+            # Create locked content in database
+            content_id = await database.create_locked_content(
+                content_type=context.user_data['content_type'],
+                file_id=context.user_data['file_id'],
+                price=context.user_data['price'],
+                description=context.user_data['description'],
+                created_by=update.effective_user.id
+            )
+            
+            await query.edit_message_text(
+                f"✅ **Locked Content Created!**\n\n"
+                f"**Content ID:** {content_id}\n"
+                f"**Price:** {context.user_data['price']} credits\n\n"
+                f"Users can now purchase this content with:\n"
+                f"`/buy_content {content_id}`"
+            )
+            
+            # Clear user data
+            context.user_data.clear()
+            
+        except Exception as e:
+            logger.error(f"Error creating locked content: {e}")
+            await query.edit_message_text(
+                "❌ Error creating locked content. Please try again."
+            )
+    
+    return ConversationHandler.END
+
+# ========================= User Commands for Locked Content =========================
+
+async def buy_content_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /buy_content command for users."""
+    if not context.args:
+        await update.message.reply_text(
+            "📖 **Purchase Locked Content**\n\n"
+            "Usage: `/buy_content <content_id>`\n\n"
+            "Ask an admin for available content IDs."
+        )
+        return
+    
+    try:
+        content_id = int(context.args[0])
+        user_id = update.effective_user.id
+        
+        # Get content info
+        content = await database.get_locked_content(content_id)
+        if not content:
+            await update.message.reply_text("❌ Content not found.")
+            return
+        
+        # Check if user already purchased
+        if await database.has_user_purchased_content(user_id, content_id):
+            # Send the content directly
+            await send_locked_content(update, content)
+            return
+        
+        # Check user balance
+        user_balance = await database.get_user_balance(user_id)
+        if user_balance < content['price']:
+            await update.message.reply_text(
+                f"❌ **Insufficient Credits**\n\n"
+                f"**Content:** {content['description']}\n"
+                f"**Price:** {content['price']} credits\n"
+                f"**Your balance:** {user_balance} credits\n\n"
+                f"You need {content['price'] - user_balance} more credits.\n"
+                "Use /buy to purchase more credits!"
+            )
+            return
+        
+        # Show purchase confirmation
+        keyboard = [
+            [InlineKeyboardButton(f"💳 Buy for {content['price']} credits", callback_data=f"purchase_{content_id}")],
+            [InlineKeyboardButton("❌ Cancel", callback_data="purchase_cancel")]
+        ]
+        
+        await update.message.reply_text(
+            f"🔒 **Locked Content Purchase**\n\n"
+            f"**Description:** {content['description']}\n"
+            f"**Price:** {content['price']} credits\n"
+            f"**Your balance:** {user_balance} credits\n\n"
+            "Confirm purchase?",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        
+    except (ValueError, IndexError):
+        await update.message.reply_text("❌ Invalid content ID. Please provide a valid number.")
+    except Exception as e:
+        logger.error(f"Error in buy_content_command: {e}")
+        await update.message.reply_text("❌ An error occurred. Please try again.")
+
+async def handle_content_purchase(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle content purchase callback."""
+    query = update.callback_query
+    await query.answer()
+    
+    if query.data == "purchase_cancel":
+        await query.edit_message_text("❌ Purchase cancelled.")
+        return
+    
+    if query.data.startswith("purchase_"):
+        try:
+            content_id = int(query.data.split("_")[1])
+            user_id = update.effective_user.id
+            
+            # Get content and user info
+            content = await database.get_locked_content(content_id)
+            user_balance = await database.get_user_balance(user_id)
+            
+            if not content:
+                await query.edit_message_text("❌ Content not found.")
+                return
+            
+            if user_balance < content['price']:
+                await query.edit_message_text("❌ Insufficient credits.")
+                return
+            
+            # Process purchase
+            success = await database.purchase_locked_content(user_id, content_id, content['price'])
+            
+            if success:
+                await query.edit_message_text(
+                    f"✅ **Purchase Successful!**\n\n"
+                    f"**Paid:** {content['price']} credits\n"
+                    f"**Remaining balance:** {user_balance - content['price']} credits\n\n"
+                    "Sending your content..."
+                )
+                
+                # Send the actual content
+                await send_locked_content(update, content)
+                
+                # Log to admin
+                await context.bot.send_message(
+                    settings.ADMIN_CHAT_ID,
+                    f"💰 **Content Purchase**\n\n"
+                    f"**User:** @{update.effective_user.username or 'N/A'} ({user_id})\n"
+                    f"**Content ID:** {content_id}\n"
+                    f"**Price:** {content['price']} credits\n"
+                    f"**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                )
+            else:
+                await query.edit_message_text("❌ Purchase failed. Please try again.")
+                
+        except Exception as e:
+            logger.error(f"Error in handle_content_purchase: {e}")
+            await query.edit_message_text("❌ An error occurred during purchase.")
+
+async def send_locked_content(update: Update, content: Dict[str, Any]):
+    """Send the actual locked content to user."""
+    try:
+        if content['content_type'] == 'photo':
+            await update.effective_chat.send_photo(
+                photo=content['file_id'],
+                caption=f"🔓 **Unlocked Content**\n\n{content['description']}"
+            )
+        elif content['content_type'] == 'video':
+            await update.effective_chat.send_video(
+                video=content['file_id'],
+                caption=f"🔓 **Unlocked Content**\n\n{content['description']}"
+            )
+        elif content['content_type'] == 'document':
+            await update.effective_chat.send_document(
+                document=content['file_id'],
+                caption=f"🔓 **Unlocked Content**\n\n{content['description']}"
+            )
+    except Exception as e:
+        logger.error(f"Error sending locked content: {e}")
+        await update.effective_chat.send_message("❌ Error accessing content. Please contact support.")
+
 # ========================= Navigation Handlers =========================
 
 async def back_to_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -570,6 +849,86 @@ async def set_admin_status(update: Update, context: ContextTypes.DEFAULT_TYPE, s
     await safe_reply(update, f"✅ Status updated to: {get_admin_status_emoji()} {status.title()}")
     return await status_menu_handler(update, context)
 
+# ========================= Mass Gift System =========================
+
+async def mass_gift_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle mass gifting to users."""
+    if not is_admin(update):
+        return ConversationHandler.END
+    
+    keyboard = [
+        [InlineKeyboardButton("🎁 Gift to All Users", callback_data="mass_gift_all")],
+        [InlineKeyboardButton("⭐ Gift to VIP Users Only", callback_data="mass_gift_vip")],
+        [InlineKeyboardButton("🆕 Gift to New Users Only", callback_data="mass_gift_new")],
+        [InlineKeyboardButton("🔄 Gift to Active Users", callback_data="mass_gift_active")],
+        [InlineKeyboardButton("🔙 Back to Main Menu", callback_data="back_to_main")]
+    ]
+    
+    # Get user statistics for display
+    stats = database.get_user_stats()
+    total_users = stats.get('total_users', 0)
+    vip_count = len(database.get_vip_users_list(1000))  # Get all VIP users
+    
+    text = f"""🎁 **Mass Gift Credits**
+
+**User Statistics:**
+• Total Users: {total_users}
+• VIP Users (100+ credits): {vip_count}
+• New Users (last 7 days): {database.get_new_users_count(7)}
+
+Select target group for mass gifting:"""
+    
+    await safe_reply(update, text, reply_markup=InlineKeyboardMarkup(keyboard))
+    return MASS_GIFT_MENU
+
+async def mass_gift_target_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle mass gift target selection."""
+    query = update.callback_query
+    await query.answer()
+    
+    if query.data == "back_to_main":
+        return await admin_command(update, context)
+    
+    # Store the target group
+    target_map = {
+        "mass_gift_all": "all",
+        "mass_gift_vip": "vip", 
+        "mass_gift_new": "new",
+        "mass_gift_active": "active"
+    }
+    
+    target = target_map.get(query.data)
+    if not target:
+        await query.edit_message_text("❌ Invalid selection.")
+        return ConversationHandler.END
+    
+    context.user_data['mass_gift_target'] = target
+    
+    # Get target count
+    if target == "all":
+        stats = database.get_user_stats()
+        count = stats.get('total_users', 0)
+        target_desc = "all users"
+    elif target == "vip":
+        count = len(database.get_vip_users_list(1000))
+        target_desc = "VIP users (100+ credits)"
+    elif target == "new":
+        count = database.get_new_users_count(7)
+        target_desc = "new users (last 7 days)"
+    elif target == "active":
+        count = database.get_active_users_count(30)
+        target_desc = "active users (last 30 days)"
+    else:
+        count = 0
+        target_desc = "unknown"
+    
+    await query.edit_message_text(
+        f"🎁 **Mass Gift to {target_desc.title()}**\n\n"
+        f"**Target:** {count} users\n\n"
+        f"Enter the number of credits to gift each user:"
+    )
+    return GIFT_AMOUNT
+
 # ========================= Placeholder Handlers =========================
 
 async def placeholder_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -593,7 +952,7 @@ def get_admin_conversation_handler() -> ConversationHandler:
                 CallbackQueryHandler(products_menu_handler, pattern='^products$'),
                 CallbackQueryHandler(placeholder_handler, pattern='^billing$'),
                 CallbackQueryHandler(placeholder_handler, pattern='^broadcast$'),
-                CallbackQueryHandler(placeholder_handler, pattern='^mass_gift$'),
+                CallbackQueryHandler(mass_gift_handler, pattern='^mass_gift$'),
                 CallbackQueryHandler(settings_menu_handler, pattern='^settings$'),
                 CallbackQueryHandler(system_menu_handler, pattern='^system$'),
                 CallbackQueryHandler(placeholder_handler, pattern='^quick_replies$'),
@@ -606,6 +965,7 @@ def get_admin_conversation_handler() -> ConversationHandler:
                 CallbackQueryHandler(ban_user_start, pattern='^ban_user$'),
                 CallbackQueryHandler(unban_user_start, pattern='^unban_user$'),
                 CallbackQueryHandler(gift_credits_start, pattern='^gift_credits$'),
+                CallbackQueryHandler(lock_content_start, pattern='^lock$'), # Added lock_content_start
                 CallbackQueryHandler(placeholder_handler, pattern='^all_users$'),
                 CallbackQueryHandler(placeholder_handler, pattern='^banned_users$'),
                 CallbackQueryHandler(placeholder_handler, pattern='^vip_users$'),
@@ -634,6 +994,10 @@ def get_admin_conversation_handler() -> ConversationHandler:
                 CallbackQueryHandler(lambda u, c: set_admin_status(u, c, 'offline', 'Not available'), pattern='^status_offline$'),
                 CallbackQueryHandler(back_to_main_menu, pattern='^back_to_main$'),
             ],
+            LOCKED_CONTENT_UPLOAD: [MessageHandler(filters.PHOTO | filters.VIDEO | filters.DOCUMENT, locked_content_upload_handler)],
+            LOCKED_CONTENT_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, locked_content_price_handler)],
+            LOCKED_CONTENT_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, locked_content_description_handler)],
+            LOCKED_CONTENT_CONFIRM: [CallbackQueryHandler(locked_content_confirm_handler)],
             # Add other menu states with placeholder handlers
             CONVERSATIONS_MENU: [CallbackQueryHandler(placeholder_handler, pattern='.*'), CallbackQueryHandler(back_to_main_menu, pattern='^back_to_main$')],
             DASHBOARD_MENU: [CallbackQueryHandler(placeholder_handler, pattern='.*'), CallbackQueryHandler(back_to_main_menu, pattern='^back_to_main$')],
@@ -652,8 +1016,13 @@ def get_admin_conversation_handler() -> ConversationHandler:
 def get_locked_content_handler() -> ConversationHandler:
     """Create a placeholder locked content handler."""
     return ConversationHandler(
-        entry_points=[CommandHandler("lock", placeholder_handler)],
-        states={},
+        entry_points=[CommandHandler("lock", lock_content_start)],
+        states={
+            LOCKED_CONTENT_UPLOAD: [MessageHandler(filters.PHOTO | filters.VIDEO | filters.DOCUMENT, locked_content_upload_handler)],
+            LOCKED_CONTENT_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, locked_content_price_handler)],
+            LOCKED_CONTENT_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, locked_content_description_handler)],
+            LOCKED_CONTENT_CONFIRM: [CallbackQueryHandler(locked_content_confirm_handler)],
+        },
         fallbacks=[CommandHandler("cancel", exit_conversation)],
         per_message=False
     ) 

@@ -68,12 +68,23 @@ async def master_message_handler(update: Update, context: ContextTypes.DEFAULT_T
         cost_setting_key = cost_mapping.get(message_type, 'cost_text_message')
         cost = int(database.get_setting(cost_setting_key, '1'))
         
+        # Apply tier-based discount
+        user_tier = database.get_user_tier(user_id)
+        discounted_cost = database.apply_tier_discount(cost, user_tier)
+        
+        # Calculate discount amount for display
+        discount_amount = cost - discounted_cost
+        discount_text = ""
+        if discount_amount > 0:
+            discount_percentage = "20%" if user_tier == "VIP" else "10%"
+            discount_text = f" (−{discount_amount} {discount_percentage} {user_tier} discount)"
+        
         # Decrement credits
-        new_balance = database.decrement_user_credits_optimized(user_id, cost)
+        new_balance = database.decrement_user_credits_optimized(user_id, discounted_cost)
         
         if new_balance == -1:
             current_balance = database.get_user_credits_optimized(user_id)
-            await safe_reply(update, f"❌ Insufficient credits. You need {cost} credits for a {message_type} message, but only have {current_balance}. Please /buy more.")
+            await safe_reply(update, f"❌ Insufficient credits. You need {discounted_cost} credits for a {message_type} message{discount_text}, but only have {current_balance}. Please /buy more.")
             return
 
         # Check for low balance and notify user
@@ -81,20 +92,60 @@ async def master_message_handler(update: Update, context: ContextTypes.DEFAULT_T
         if 0 < new_balance <= low_balance_threshold:
             # Check if notification was sent recently to avoid spam
             if database.can_send_low_balance_notification(user_id):
-                await context.bot.send_message(
-                    chat_id=user_id,
-                    text=f"⚠️ **Low Balance Warning**\nYou now have {new_balance} credits remaining. /buy more to continue.",
-                    parse_mode='Markdown'
-                )
+                # Check for auto-recharge first
+                auto_recharge_info = database.get_user_auto_recharge_settings(user_id)
+                
+                if auto_recharge_info and auto_recharge_info.get('enabled') and new_balance <= auto_recharge_info.get('threshold', 5):
+                    # Attempt auto-recharge
+                    recharge_amount = auto_recharge_info.get('amount', 10)
+                    success = await database.process_auto_recharge(user_id, recharge_amount)
+                    
+                    if success:
+                        await context.bot.send_message(
+                            chat_id=user_id,
+                            text=f"🔄 **Auto-Recharge Activated**\n\n"
+                                 f"Your balance was low ({new_balance} credits), so we automatically recharged {recharge_amount} credits.\n"
+                                 f"New balance: {new_balance + recharge_amount} credits\n\n"
+                                 f"To disable auto-recharge, use /settings.",
+                            parse_mode='Markdown'
+                        )
+                        # Log to admin
+                        await context.bot.send_message(
+                            settings.ADMIN_CHAT_ID,
+                            f"🔄 **Auto-Recharge Processed**\n\n"
+                            f"User: @{update.effective_user.username or 'N/A'} ({user_id})\n"
+                            f"Amount: {recharge_amount} credits\n"
+                            f"New balance: {new_balance + recharge_amount} credits"
+                        )
+                    else:
+                        # Auto-recharge failed, send regular low balance warning
+                        await context.bot.send_message(
+                            chat_id=user_id,
+                            text=f"⚠️ **Low Balance Warning**\n\n"
+                                 f"You now have {new_balance} credits remaining.\n"
+                                 f"Auto-recharge failed - please /buy more credits manually.",
+                            parse_mode='Markdown'
+                        )
+                else:
+                    # Regular low balance notification
+                    await context.bot.send_message(
+                        chat_id=user_id,
+                        text=f"⚠️ **Low Balance Warning**\n\n"
+                             f"You now have {new_balance} credits remaining. /buy more to continue.\n\n"
+                             f"💡 Tip: Enable auto-recharge in /settings to never run out!",
+                        parse_mode='Markdown'
+                    )
+                
                 database.update_low_balance_notification_status(user_id)
         
         # Try topic forwarding first (preferred method)
-        topic_handled = await topic_manager.handle_user_message_to_topic(context.bot, update, context, cost)
+        topic_handled = await topic_manager.handle_user_message_to_topic(context.bot, update, context, discounted_cost, discount_text, user_tier)
         
         if not topic_handled:
             # Fallback to private chat forwarding
             try:
-                header = f"📩 New message from: @{update.effective_user.username} (ID: {user_id})\nBalance: {new_balance} credits"
+                tier_emoji, tier_text = topic_manager.get_user_tier_info(database.get_user_credits_optimized(user_id))
+                header = f"📩 New message from: @{update.effective_user.username} {tier_emoji} {tier_text} (ID: {user_id})\nCost: {discounted_cost} credits{discount_text} | Balance: {new_balance} credits"
                 await context.bot.send_message(chat_id=admin_chat_id, text=header)
                 forwarded_message = await message.forward(chat_id=admin_chat_id)
                 
@@ -108,7 +159,7 @@ async def master_message_handler(update: Update, context: ContextTypes.DEFAULT_T
             except Exception as e:
                 logger.error(f"Failed to forward message from {user_id} to admin: {e}")
                 # Refund credits on failure
-                database.add_user_credits(user_id, cost) 
+                database.add_user_credits(user_id, discounted_cost) 
                 await safe_reply(update, "⚠️ Sorry, there was an error sending your message. Your credits have been refunded.")
 
     # --- Admin Group Messages (non-topic) ---

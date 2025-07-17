@@ -130,7 +130,7 @@ Use admin commands for credit management
     except Exception as e:
         logger.error(f"Error sending enhanced user info card: {e}")
 
-async def handle_user_message_to_topic(bot: Bot, update: Update, context: ContextTypes.DEFAULT_TYPE, cost: int) -> bool:
+async def handle_user_message_to_topic(bot: Bot, update: Update, context: ContextTypes.DEFAULT_TYPE, cost: int, discount_text: str = "", user_tier: str = "") -> bool:
     """Enhanced user message handling with all media types support."""
     try:
         user_id = update.effective_user.id
@@ -160,10 +160,10 @@ async def handle_user_message_to_topic(bot: Bot, update: Update, context: Contex
             # Determine message type for header
             message_type = get_message_type(update.message)
             
-            # Enhanced header with message type and user info
+            # Enhanced header with message type, tier, and discount info
             header = f"""💬 **New {message_type} message**
 From: @{update.effective_user.username or 'Unknown'} {tier_emoji} {tier_text} (ID: `{user_id}`)
-Cost: {cost} credits | Balance: {user_credits} credits
+Cost: {cost} credits{discount_text} | Balance: {user_credits} credits
 ──────────────────────────────────"""
             
             await bot.send_message(
@@ -218,7 +218,19 @@ async def handle_admin_topic_reply(bot: Bot, update: Update, context: ContextTyp
         try:
             # Handle different message types
             if update.message.text:
-                await bot.send_message(chat_id=target_user_id, text=update.message.text)
+                # Check for quick reply keywords
+                message_text = update.message.text.strip()
+                quick_reply = database.get_quick_reply(message_text)
+                
+                if quick_reply:
+                    # Send quick reply instead of original message
+                    await bot.send_message(chat_id=target_user_id, text=quick_reply)
+                    # Add reaction to show it was a quick reply
+                    await update.message.add_reaction("🔄")
+                else:
+                    # Send original text
+                    await bot.send_message(chat_id=target_user_id, text=update.message.text)
+                    await update.message.add_reaction("✅")
             elif update.message.photo:
                 await bot.send_photo(
                     chat_id=target_user_id,

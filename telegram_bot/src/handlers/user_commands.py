@@ -14,6 +14,9 @@ from src.error_handler import rate_limit, monitor_performance
 
 logger = logging.getLogger(__name__)
 
+# Import buy_content function from admin_commands
+from src.handlers.admin_commands import buy_content_command
+
 # Helper functions (as they were, no changes needed)
 def safe_reply(update, text, reply_markup=None, parse_mode='Markdown', **kwargs):
     if hasattr(update, 'message') and update.message:
