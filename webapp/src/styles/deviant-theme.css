@@ -8,13 +8,18 @@
   --bg-tertiary: #333639;
   --bg-card: #2C2F33;
   --bg-hover: #3A3D42;
+  --bg-sidebar: #0F1419;
+  --bg-sidebar-secondary: #1A1E23;
   --border-color: #4A4D50;
   --border-light: #5A5D60;
+  --border-sidebar: #2A2E33;
   
   /* Text Colors */
   --text-primary: #FFFFFF;
   --text-secondary: #B2B2B2;
   --text-muted: #8E9297;
+  --text-sidebar: #E8E8E8;
+  --text-sidebar-muted: #9CA3AF;
   
   /* Accent Colors */
   --accent-green: #00E59B;
@@ -28,6 +33,7 @@
   --font-weight-regular: 400;
   --font-weight-medium: 500;
   --font-weight-bold: 700;
+  --font-weight-black: 900;
   
   /* Spacing */
   --spacing-xs: 0.25rem;
@@ -134,6 +140,264 @@ a:hover {
   background-color: var(--bg-primary);
 }
 
+/* 5. DeviantArt-Style Sidebar */
+.sidebar-deviant {
+  width: 280px;
+  background-color: var(--bg-sidebar);
+  position: fixed;
+  height: 100vh;
+  overflow-y: auto;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border-sidebar);
+}
+
+/* Brand Header */
+.nav-brand-deviant {
+  padding: var(--spacing-lg);
+  border-bottom: 1px solid var(--border-sidebar);
+  background-color: var(--bg-sidebar);
+}
+
+.nav-brand-logo {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-xs);
+}
+
+.brand-icon {
+  font-size: 1.5rem;
+  color: var(--accent-green);
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+
+.brand-name {
+  font-size: 1.5rem;
+  font-weight: var(--font-weight-black);
+  color: var(--text-sidebar);
+  letter-spacing: -0.02em;
+}
+
+.brand-suffix {
+  font-size: 1.5rem;
+  font-weight: var(--font-weight-black);
+  color: var(--accent-green);
+  letter-spacing: -0.02em;
+}
+
+.brand-subtitle {
+  font-size: 0.75rem;
+  color: var(--text-sidebar-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: var(--spacing-xs);
+}
+
+/* Navigation Sections */
+.nav-sections {
+  flex: 1;
+  padding: var(--spacing-lg) 0;
+  overflow-y: auto;
+}
+
+.nav-section {
+  margin-bottom: var(--spacing-xl);
+}
+
+.nav-section-header {
+  padding: 0 var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+  font-size: 0.875rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--text-sidebar-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.nav-section-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-item-deviant {
+  margin: 0;
+}
+
+.nav-link-deviant {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  color: var(--text-sidebar);
+  text-decoration: none;
+  transition: var(--transition-fast);
+  border-left: 3px solid transparent;
+  font-weight: var(--font-weight-medium);
+}
+
+.nav-link-deviant:hover {
+  background-color: var(--bg-sidebar-secondary);
+  color: var(--text-sidebar);
+  text-decoration: none;
+  border-left-color: var(--accent-green);
+}
+
+.nav-link-deviant.active {
+  background-color: var(--bg-sidebar-secondary);
+  color: var(--accent-green);
+  border-left-color: var(--accent-green);
+  font-weight: var(--font-weight-bold);
+}
+
+.nav-icon-deviant {
+  font-size: 1.25rem;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.nav-text-deviant {
+  font-size: 1rem;
+  flex: 1;
+}
+
+/* Action Section */
+.nav-actions {
+  padding: var(--spacing-lg);
+  border-top: 1px solid var(--border-sidebar);
+  background-color: var(--bg-sidebar);
+}
+
+.action-button-primary {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  width: 100%;
+  padding: var(--spacing-md);
+  background-color: transparent;
+  border: 2px solid var(--text-sidebar-muted);
+  border-radius: var(--radius-md);
+  color: var(--text-sidebar);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  margin-bottom: var(--spacing-md);
+}
+
+.action-button-primary:hover {
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+  background-color: rgba(0, 229, 155, 0.05);
+}
+
+.action-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.action-text {
+  flex: 1;
+  text-align: left;
+}
+
+.action-description {
+  font-size: 0.75rem;
+  color: var(--text-sidebar-muted);
+  line-height: 1.4;
+}
+
+/* Sidebar Footer */
+.sidebar-footer {
+  padding: var(--spacing-lg);
+  border-top: 1px solid var(--border-sidebar);
+  background-color: var(--bg-sidebar);
+  margin-top: auto;
+}
+
+.system-status {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-dot.online {
+  background-color: var(--accent-green);
+}
+
+.status-dot.connected {
+  background-color: var(--accent-blue);
+}
+
+.status-text {
+  font-size: 0.75rem;
+  color: var(--text-sidebar-muted);
+}
+
+.version-info {
+  font-size: 0.75rem;
+  color: var(--text-sidebar-muted);
+  text-align: center;
+  margin-top: var(--spacing-sm);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--border-sidebar);
+}
+
+/* Sidebar Responsive */
+@media (max-width: 768px) {
+  .sidebar-deviant {
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out;
+  }
+  
+  .sidebar-deviant.open {
+    transform: translateX(0);
+  }
+}
+
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 50;
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .sidebar-overlay {
+    display: block;
+  }
+}
+
+/* 6. Original Sidebar (for backward compatibility) */
 .sidebar {
   width: 280px;
   background-color: var(--bg-secondary);
@@ -168,7 +432,7 @@ a:hover {
   padding: var(--spacing-lg);
 }
 
-/* 5. Navigation Components */
+/* 7. Navigation Components (Legacy) */
 .nav-brand {
   display: flex;
   align-items: center;
@@ -239,7 +503,7 @@ a:hover {
   opacity: 1;
 }
 
-/* 6. Button Components */
+/* 8. Button Components */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -322,7 +586,7 @@ a:hover {
   font-size: 1.125rem;
 }
 
-/* 7. Card Components */
+/* 9. Card Components */
 .card {
   background-color: var(--bg-card);
   border-radius: var(--radius-lg);
@@ -366,7 +630,7 @@ a:hover {
   justify-content: space-between;
 }
 
-/* 8. Compact Stats Cards */
+/* 10. Compact Stats Cards */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -455,7 +719,7 @@ a:hover {
   font-weight: var(--font-weight-bold);
 }
 
-/* 9. Original Stats Cards (for backward compatibility) */
+/* 11. Original Stats Cards (for backward compatibility) */
 .stat-card {
   background-color: var(--bg-secondary);
   border-radius: var(--radius-md);
@@ -525,7 +789,7 @@ a:hover {
   color: var(--accent-red);
 }
 
-/* 10. Form Components */
+/* 12. Form Components */
 .form-group {
   margin-bottom: var(--spacing-lg);
 }
@@ -570,7 +834,7 @@ a:hover {
   min-height: 100px;
 }
 
-/* 11. Table Components */
+/* 13. Table Components */
 .table-container {
   background-color: var(--bg-card);
   border-radius: var(--radius-lg);
@@ -609,7 +873,7 @@ a:hover {
   border-bottom: none;
 }
 
-/* 12. Badge Components */
+/* 14. Badge Components */
 .badge {
   display: inline-flex;
   align-items: center;
@@ -645,7 +909,7 @@ a:hover {
   border: 1px solid var(--accent-blue);
 }
 
-/* 13. Activity Feed Components */
+/* 15. Activity Feed Components */
 .activity-item {
   display: flex;
   align-items: center;
@@ -698,7 +962,7 @@ a:hover {
   margin-right: var(--spacing-sm);
 }
 
-/* 14. Loading & Animation */
+/* 16. Loading & Animation */
 .loading-spinner {
   width: 16px;
   height: 16px;
@@ -722,17 +986,8 @@ a:hover {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* 15. Responsive Design */
+/* 17. Responsive Design */
 @media (max-width: 768px) {
-  .sidebar {
-    transform: translateX(-100%);
-    transition: transform 0.3s ease-in-out;
-  }
-  
-  .sidebar.open {
-    transform: translateX(0);
-  }
-  
   .main-content {
     margin-left: 0;
   }
@@ -750,7 +1005,7 @@ a:hover {
   }
 }
 
-/* 16. Utility Classes */
+/* 18. Utility Classes */
 .text-primary { color: var(--text-primary) !important; }
 .text-secondary { color: var(--text-secondary) !important; }
 .text-muted { color: var(--text-muted) !important; }
