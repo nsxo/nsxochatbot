@@ -1,0 +1,5 @@
+2025-07-17 12:05:33,962 - ERROR - ❌ Missing required environment variables: RAILWAY_TOKEN, RAILWAY_PROJECT_ID, RAILWAY_SERVICE_ID
+2025-07-17 12:05:33,962 - INFO - 💡 Set these in your environment or .env file
+2025-07-17 12:05:40,437 - INFO - 🚀 Starting Railway monitoring cycle...
+2025-07-17 12:05:40,619 - ERROR - ❌ Could not get deployment status
+2025-07-17 12:05:40,619 - ERROR - ❌ Monitoring cycle failed

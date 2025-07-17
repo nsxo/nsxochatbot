@@ -1,0 +1,78 @@
+# Railway Deployment Monitor Configuration
+# Update these values with your Railway credentials
+
+railway:
+  # Get from https://railway.app/account/tokens
+  api_token: "a96f2e28-6b02-4979-b058-bd83fd02b539"
+  
+  # Get from your Railway project URL
+  project_id: "1a667d5e-72d0-4930-ac5a-197fdc7506b3"
+  
+  # Get from your Railway service URL  
+  service_id: "50debca3-c5f6-437b-b15e-efdf61a86666"
+  
+  # Railway GraphQL endpoint
+  api_url: "https://backboard.railway.app/graphql/v2"
+
+# Monitoring settings
+monitoring:
+  # Check interval in seconds
+  check_interval: 300  # 5 minutes
+  
+  # Enable auto-fixing
+  auto_fix: true
+  
+  # Maximum auto-fix attempts per deployment
+  max_fix_attempts: 3
+
+# Notification settings
+notifications:
+  # Enable notifications
+  enabled: true
+  
+  # Webhook URL for notifications (optional)
+  webhook_url: ""
+  
+  # Discord webhook for notifications (optional)
+  discord_webhook: ""
+
+# Issue detection patterns
+issue_patterns:
+  memory_errors:
+    - "JavaScript heap out of memory"
+    - "FATAL ERROR: Ineffective mark-compacts"
+    - "ENOMEM"
+  
+  dependency_errors:
+    - "npm ERR!"
+    - "Module not found"
+    - "Cannot resolve dependency"
+    - "ERESOLVE"
+  
+  build_errors:
+    - "border-border"
+    - "does not exist"
+    - "Build failed"
+  
+  port_errors:
+    - "EADDRINUSE"
+    - "Port already in use"
+    - "listen EADDRINUSE"
+
+# Auto-fix actions for each issue type
+auto_fixes:
+  memory_errors:
+    - "increase_node_memory"
+    - "optimize_build_config"
+  
+  dependency_errors:
+    - "clean_dependencies"
+    - "update_package_lock"
+  
+  build_errors:
+    - "fix_css_classes"
+    - "update_tailwind_config"
+  
+  port_errors:
+    - "fix_port_binding"
+    - "update_railway_config" 
