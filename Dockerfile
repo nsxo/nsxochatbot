@@ -26,11 +26,14 @@ RUN pip install -r requirements.txt
 # Copy API server
 COPY webapp/api/ ./api/
 
+# Copy test deployment script
+COPY webapp/test_deployment.py ./
+
 # Copy built React app from builder stage
 COPY --from=builder /app/dist ./dist
 
 # Expose port (Railway will set PORT env var)
 EXPOSE 8000
 
-# Start the Flask API server (which also serves static files)
-CMD ["python", "api/dashboard.py"] 
+# Start the test Flask API server for debugging
+CMD ["python", "test_deployment.py"] 
