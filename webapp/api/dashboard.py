@@ -296,10 +296,10 @@ def get_products():
         
         with conn.cursor() as cursor:
             cursor.execute("""
-                SELECT id, label, amount, description, is_active, 
+                SELECT id, name, credits, description, price_cents, is_active, 
                        stripe_product_id, stripe_price_id
                 FROM products 
-                ORDER BY amount ASC
+                ORDER BY credits ASC
             """)
             products = cursor.fetchall()
             
@@ -307,10 +307,10 @@ def get_products():
         
         return jsonify([{
             'id': product['id'],
-            'name': product['label'],
-            'credits': product['amount'],
+            'name': product['name'],
+            'credits': product['credits'],
             'description': product['description'],
-            'price': f"${product['amount'] * 0.1:.2f}",  # Estimate: $0.10 per credit
+            'price': f"${product['price_cents'] / 100:.2f}",  # Convert cents to dollars
             'isActive': product['is_active'],
             'stripeProductId': product['stripe_product_id'],
             'stripePriceId': product['stripe_price_id']
@@ -334,13 +334,14 @@ def create_product():
         
         with conn.cursor() as cursor:
             cursor.execute("""
-                INSERT INTO products (label, amount, description, item_type, is_active)
-                VALUES (%s, %s, %s, 'credits', %s)
+                INSERT INTO products (name, credits, description, price_cents, is_active)
+                VALUES (%s, %s, %s, %s, %s)
                 RETURNING id
             """, (
                 data['name'],
                 int(data['credits']),
                 data.get('description', ''),
+                int(data.get('credits', 0)) * 10,  # Convert credits to cents (10 cents per credit)
                 data.get('isActive', True)
             ))
             
@@ -371,12 +372,13 @@ def update_product(product_id):
         with conn.cursor() as cursor:
             cursor.execute("""
                 UPDATE products 
-                SET label = %s, amount = %s, description = %s, is_active = %s
+                SET name = %s, credits = %s, description = %s, price_cents = %s, is_active = %s
                 WHERE id = %s
             """, (
                 data['name'],
                 int(data['credits']),
                 data.get('description', ''),
+                int(data.get('credits', 0)) * 10,  # Convert credits to cents
                 data.get('isActive', True),
                 product_id
             ))
