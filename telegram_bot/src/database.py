@@ -652,7 +652,7 @@ def set_stripe_customer_id(user_id: int, customer_id: str) -> None:
     except Exception as e:
         logger.error(f"Error setting Stripe customer ID: {e}")
 
-def add_user_credits(user_id: int, amount: int, credit_type: str = 'message') -> None:
+def add_user_credits(user_id: int, amount: int, credit_type: str = 'message') -> bool:
     """Add credits or time to a user's account."""
     try:
         if credit_type == 'time':
@@ -661,8 +661,10 @@ def add_user_credits(user_id: int, amount: int, credit_type: str = 'message') ->
             query = "UPDATE users SET message_credits = message_credits + %s WHERE telegram_id = %s" if db_manager._db_type == 'postgresql' else "UPDATE users SET message_credits = message_credits + ? WHERE telegram_id = ?"
         
         db_manager.execute_query(query, (amount, user_id))
+        return True
     except Exception as e:
         logger.error(f"Error adding user credits: {e}")
+        return False
 
 def get_setting(key: str, default: str = None) -> Optional[str]:
     """Get a specific setting from the database."""
@@ -1375,87 +1377,7 @@ def apply_tier_discount(cost: int, tier: str) -> int:
     else:
         return cost
 
-# ========================= Locked Content Functions =========================
-
-async def get_locked_content(content_id: int) -> Optional[Dict[str, Any]]:
-    """Get locked content by ID."""
-    conn = await get_db_connection()
-    if not conn:
-        return None
-    
-    try:
-        result = await conn.fetchrow(
-            "SELECT * FROM locked_content WHERE id = $1 AND is_active = true",
-            content_id
-        )
-        return dict(result) if result else None
-    except Exception as e:
-        logger.error(f"Error getting locked content: {e}")
-        return None
-    finally:
-        await conn.close()
-
-async def has_user_purchased_content(user_id: int, content_id: int) -> bool:
-    """Check if user has already purchased specific content."""
-    conn = await get_db_connection()
-    if not conn:
-        return False
-    
-    try:
-        result = await conn.fetchval(
-            "SELECT EXISTS(SELECT 1 FROM content_purchases WHERE user_id = $1 AND content_id = $2)",
-            user_id, content_id
-        )
-        return bool(result)
-    except Exception as e:
-        logger.error(f"Error checking content purchase: {e}")
-        return False
-    finally:
-        await conn.close()
-
-async def purchase_locked_content(user_id: int, content_id: int, price: int) -> bool:
-    """Process purchase of locked content."""
-    conn = await get_db_connection()
-    if not conn:
-        return False
-    
-    try:
-        async with conn.transaction():
-            # Check user balance
-            balance = await conn.fetchval(
-                "SELECT credits FROM users WHERE user_id = $1",
-                user_id
-            )
-            
-            if balance is None or balance < price:
-                return False
-            
-            # Deduct credits
-            await conn.execute(
-                "UPDATE users SET credits = credits - $1 WHERE user_id = $2",
-                price, user_id
-            )
-            
-            # Record purchase
-            await conn.execute(
-                """INSERT INTO content_purchases (user_id, content_id, price_paid, purchased_at)
-                   VALUES ($1, $2, $3, NOW())""",
-                user_id, content_id, price
-            )
-            
-            # Add transaction record
-            await conn.execute(
-                """INSERT INTO transactions (user_id, amount, transaction_type, description, created_at)
-                   VALUES ($1, $2, 'content_purchase', $3, NOW())""",
-                user_id, -price, f"Purchased content #{content_id}"
-            )
-            
-            return True
-    except Exception as e:
-        logger.error(f"Error purchasing content: {e}")
-        return False
-    finally:
-        await conn.close()
+# ========================= Existing Functions Continue =========================
 
 def get_user_balance(user_id: int) -> int:
     """Get user's current credit balance (synchronous version for compatibility)."""

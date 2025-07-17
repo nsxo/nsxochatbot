@@ -1,0 +1,17 @@
+[phases.setup]
+nixPkgs = ["nodejs", "python310", "python310Packages.pip"]
+
+[phases.install]
+cmds = [
+    "cd telegram_bot && pip install -r requirements.txt",
+    "cd telegram_bot/admin_dashboard && pip install -r requirements.txt",
+    "cd telegram_bot/admin_dashboard && npm install"
+]
+
+[phases.build]
+cmds = [
+    "cd telegram_bot/admin_dashboard && npm run build"
+]
+
+[start]
+cmd = "cd telegram_bot/admin_dashboard && python start_server.py" 
