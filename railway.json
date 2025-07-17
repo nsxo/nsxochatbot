@@ -3,7 +3,7 @@
   "build": {
     "builder": "DOCKERFILE",
     "context": "telegram_bot",
-    "dockerfilePath": "deployment/Dockerfile"
+    "dockerfilePath": "telegram_bot/deployment/Dockerfile"
   },
   "deploy": {
     "startCommand": "python deployment/simple_railway_bot.py",
