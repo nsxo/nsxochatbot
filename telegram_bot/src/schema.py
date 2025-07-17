@@ -3,7 +3,10 @@
 Database schema definitions and default settings.
 """
 
+import logging
 from typing import List, Tuple
+
+logger = logging.getLogger(__name__)
 
 
 def get_schema_queries() -> List[str]:
@@ -105,3 +108,56 @@ def get_default_settings() -> List[Tuple[str, str]]:
         ('low_credit_threshold', '5'),
         ('low_time_threshold', '300')
     ]
+
+def get_default_products() -> List[Tuple]:
+    """Get default products to insert into the database."""
+    return [
+        ('prod_starter', 'price_starter', '🚀 Starter Pack (10 Credits)', 10, 'credits', '10 message credits', True),
+        ('prod_basic', 'price_basic', '💼 Basic Pack (25 Credits)', 25, 'credits', '25 message credits', True),
+        ('prod_premium', 'price_premium', '⭐ Premium Pack (50 Credits)', 50, 'credits', '50 message credits', True),
+        ('prod_unlimited', 'price_unlimited', '🎯 Power Pack (100 Credits)', 100, 'credits', '100 message credits', True),
+    ]
+
+def initialize_default_data():
+    """Initialize database with default settings and products."""
+    try:
+        # Import here to avoid circular imports
+        from src.database import db_manager
+        
+        # Insert default settings
+        for key, value in get_default_settings():
+            query = """
+                INSERT INTO bot_settings (setting_key, setting_value) 
+                VALUES (%s, %s) 
+                ON CONFLICT (setting_key) DO NOTHING
+            """ if db_manager._db_type == 'postgresql' else """
+                INSERT OR IGNORE INTO bot_settings (setting_key, setting_value) 
+                VALUES (?, ?)
+            """
+            db_manager.execute_query(query, (key, value))
+        
+        # Insert default products
+        for product in get_default_products():
+            query = """
+                INSERT INTO products (stripe_product_id, stripe_price_id, label, amount, item_type, description, is_active) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s) 
+                ON CONFLICT DO NOTHING
+            """ if db_manager._db_type == 'postgresql' else """
+                INSERT OR IGNORE INTO products (stripe_product_id, stripe_price_id, label, amount, item_type, description, is_active) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """
+            db_manager.execute_query(query, product)
+            
+        logger.info("✅ Default data initialized successfully")
+        
+    except Exception as e:
+        logger.error(f"Error initializing default data: {e}")
+
+def ensure_default_data():
+    """Ensure default data exists in the database."""
+    try:
+        initialize_default_data()
+    except Exception as e:
+        logger.error(f"Failed to ensure default data: {e}")
+
+# Add this call to the DatabaseManager initialization

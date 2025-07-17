@@ -158,6 +158,13 @@ class DatabaseManager:
                     conn.commit()
 
             logger.info("Database schema ensured")
+            
+            # Initialize default data after schema creation
+            try:
+                from src.schema import ensure_default_data
+                ensure_default_data()
+            except Exception as e:
+                logger.warning(f"Failed to initialize default data: {e}")
 
         except Exception as e:
             logger.error(f"Failed to ensure schema: {e}")
@@ -533,3 +540,93 @@ def create_locked_content(content_type: str, file_id: str, price: int, created_b
     except Exception as e:
         logger.error(f"Error creating locked content: {e}")
         return 0
+
+def get_all_users(limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+    """Get paginated list of all users."""
+    try:
+        query = """
+        SELECT telegram_id, username, first_name, message_credits, is_banned, created_at
+        FROM users
+        ORDER BY created_at DESC
+        LIMIT %s OFFSET %s
+        """ if db_manager._db_type == 'postgresql' else """
+        SELECT telegram_id, username, first_name, message_credits, is_banned, created_at
+        FROM users
+        ORDER BY created_at DESC
+        LIMIT ? OFFSET ?
+        """
+        return db_manager.execute_query(query, (limit, offset), fetch_all=True)
+    except Exception as e:
+        logger.error(f"Error getting all users: {e}")
+        return []
+
+def ban_user(user_id: int, reason: str = "Admin action") -> bool:
+    """Ban a user with optional reason."""
+    try:
+        query = """
+        UPDATE users 
+        SET is_banned = TRUE, ban_reason = %s, updated_at = CURRENT_TIMESTAMP
+        WHERE telegram_id = %s
+        """ if db_manager._db_type == 'postgresql' else """
+        UPDATE users 
+        SET is_banned = 1, ban_reason = ?, updated_at = datetime('now')
+        WHERE telegram_id = ?
+        """
+        db_manager.execute_query(query, (reason, user_id))
+        logger.info(f"User {user_id} banned: {reason}")
+        return True
+    except Exception as e:
+        logger.error(f"Error banning user {user_id}: {e}")
+        return False
+
+def unban_user(user_id: int) -> bool:
+    """Unban a user."""
+    try:
+        query = """
+        UPDATE users 
+        SET is_banned = FALSE, ban_reason = NULL, updated_at = CURRENT_TIMESTAMP
+        WHERE telegram_id = %s
+        """ if db_manager._db_type == 'postgresql' else """
+        UPDATE users 
+        SET is_banned = 0, ban_reason = NULL, updated_at = datetime('now')
+        WHERE telegram_id = ?
+        """
+        db_manager.execute_query(query, (user_id,))
+        logger.info(f"User {user_id} unbanned")
+        return True
+    except Exception as e:
+        logger.error(f"Error unbanning user {user_id}: {e}")
+        return False
+
+def update_setting(key: str, value: str) -> bool:
+    """Update a bot setting."""
+    try:
+        query = """
+        INSERT INTO bot_settings (setting_key, setting_value, updated_at)
+        VALUES (%s, %s, CURRENT_TIMESTAMP)
+        ON CONFLICT (setting_key) 
+        DO UPDATE SET setting_value = EXCLUDED.setting_value, updated_at = CURRENT_TIMESTAMP
+        """ if db_manager._db_type == 'postgresql' else """
+        INSERT OR REPLACE INTO bot_settings (setting_key, setting_value, updated_at)
+        VALUES (?, ?, datetime('now'))
+        """
+        db_manager.execute_query(query, (key, value))
+        logger.info(f"Setting updated: {key} = {value}")
+        return True
+    except Exception as e:
+        logger.error(f"Error updating setting {key}: {e}")
+        return False
+
+def get_user_by_customer_id(customer_id: str) -> Optional[int]:
+    """Get user ID by Stripe customer ID."""
+    try:
+        query = """
+        SELECT telegram_id FROM users WHERE stripe_customer_id = %s
+        """ if db_manager._db_type == 'postgresql' else """
+        SELECT telegram_id FROM users WHERE stripe_customer_id = ?
+        """
+        result = db_manager.execute_query(query, (customer_id,), fetch_one=True)
+        return result['telegram_id'] if result else None
+    except Exception as e:
+        logger.error(f"Error getting user by customer ID {customer_id}: {e}")
+        return None
