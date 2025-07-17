@@ -630,3 +630,118 @@ def get_user_by_customer_id(customer_id: str) -> Optional[int]:
     except Exception as e:
         logger.error(f"Error getting user by customer ID {customer_id}: {e}")
         return None
+
+def get_or_create_user_topic(user_id: int, username: str = None, first_name: str = None) -> Optional[int]:
+    """Get existing topic ID for user or create a new one."""
+    try:
+        # First, check if user already has a topic
+        query = """
+        SELECT topic_id FROM conversations 
+        WHERE user_id = %s AND topic_id IS NOT NULL 
+        ORDER BY created_at DESC LIMIT 1
+        """ if db_manager._db_type == 'postgresql' else """
+        SELECT topic_id FROM conversations 
+        WHERE user_id = ? AND topic_id IS NOT NULL 
+        ORDER BY created_at DESC LIMIT 1
+        """
+        
+        result = db_manager.execute_query(query, (user_id,), fetch_one=True)
+        if result and result['topic_id']:
+            return result['topic_id']
+        
+        # If no topic exists, return None - topic creation should be handled by the bot
+        # when it actually creates the forum topic in Telegram
+        return None
+        
+    except Exception as e:
+        logger.error(f"Error getting/creating user topic for {user_id}: {e}")
+        return None
+
+def save_user_topic(user_id: int, topic_id: int) -> bool:
+    """Save the topic ID for a user after topic creation."""
+    try:
+        query = """
+        INSERT INTO conversations (user_id, topic_id, status, created_at, updated_at)
+        VALUES (%s, %s, 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ON CONFLICT (user_id) DO UPDATE SET 
+            topic_id = EXCLUDED.topic_id,
+            updated_at = CURRENT_TIMESTAMP
+        """ if db_manager._db_type == 'postgresql' else """
+        INSERT OR REPLACE INTO conversations (user_id, topic_id, status, created_at, updated_at)
+        VALUES (?, ?, 'active', datetime('now'), datetime('now'))
+        """
+        
+        db_manager.execute_query(query, (user_id, topic_id))
+        logger.info(f"Saved topic {topic_id} for user {user_id}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error saving user topic for {user_id}: {e}")
+        return False
+
+def update_conversation_activity(user_id: int, topic_id: int = None) -> bool:
+    """Update the last message timestamp for a conversation."""
+    try:
+        if topic_id:
+            query = """
+            UPDATE conversations 
+            SET last_message_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+            WHERE user_id = %s AND topic_id = %s
+            """ if db_manager._db_type == 'postgresql' else """
+            UPDATE conversations 
+            SET last_message_at = datetime('now'), updated_at = datetime('now')
+            WHERE user_id = ? AND topic_id = ?
+            """
+            db_manager.execute_query(query, (user_id, topic_id))
+        else:
+            query = """
+            UPDATE conversations 
+            SET last_message_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+            WHERE user_id = %s
+            """ if db_manager._db_type == 'postgresql' else """
+            UPDATE conversations 
+            SET last_message_at = datetime('now'), updated_at = datetime('now')
+            WHERE user_id = ?
+            """
+            db_manager.execute_query(query, (user_id,))
+        
+        return True
+    except Exception as e:
+        logger.error(f"Error updating conversation activity for {user_id}: {e}")
+        return False
+
+def get_user_by_topic_id(topic_id: int) -> Optional[int]:
+    """Get user ID by topic ID."""
+    try:
+        query = """
+        SELECT user_id FROM conversations WHERE topic_id = %s
+        """ if db_manager._db_type == 'postgresql' else """
+        SELECT user_id FROM conversations WHERE topic_id = ?
+        """
+        result = db_manager.execute_query(query, (topic_id,), fetch_one=True)
+        return result['user_id'] if result else None
+    except Exception as e:
+        logger.error(f"Error getting user by topic ID {topic_id}: {e}")
+        return None
+
+def get_user_info(user_id: int) -> Optional[Dict[str, Any]]:
+    """Get detailed user information."""
+    try:
+        query = """
+        SELECT telegram_id, username, first_name, last_name, message_credits, 
+               time_credits, is_banned, ban_reason, created_at, updated_at, last_active
+        FROM users 
+        WHERE telegram_id = %s
+        """ if db_manager._db_type == 'postgresql' else """
+        SELECT telegram_id, username, first_name, last_name, message_credits, 
+               time_credits, is_banned, ban_reason, created_at, updated_at, last_active
+        FROM users 
+        WHERE telegram_id = ?
+        """
+        
+        result = db_manager.execute_query(query, (user_id,), fetch_one=True)
+        return dict(result) if result else None
+        
+    except Exception as e:
+        logger.error(f"Error getting user info for {user_id}: {e}")
+        return None

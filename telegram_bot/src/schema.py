@@ -27,7 +27,8 @@ def get_schema_queries() -> List[str]:
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            is_banned BOOLEAN DEFAULT FALSE
+            is_banned BOOLEAN DEFAULT FALSE,
+            ban_reason TEXT
         )
         """,
         """
@@ -41,7 +42,8 @@ def get_schema_queries() -> List[str]:
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             is_pinned BOOLEAN DEFAULT FALSE,
-            notes TEXT
+            notes TEXT,
+            UNIQUE(user_id)
         )
         """,
         """
