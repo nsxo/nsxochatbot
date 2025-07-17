@@ -433,8 +433,8 @@ def get_users():
 def serve_index():
     """Serve the React app."""
     try:
-        # Check for dist directory in multiple possible locations
-        possible_paths = ['dist/index.html', '../dist/index.html', './dist/index.html']
+        # In Railway deployment, files are at /app/dist
+        possible_paths = ['/app/dist/index.html', 'dist/index.html', '../dist/index.html', './dist/index.html']
         for path in possible_paths:
             if os.path.exists(path):
                 return send_file(path)
@@ -444,6 +444,7 @@ def serve_index():
         <h1>Admin Dashboard - Setup Required</h1>
         <p>React app not built. Working directory: {os.getcwd()}</p>
         <p>Available files: {os.listdir('.')}</p>
+        <p>Looking for paths: {possible_paths}</p>
         <p>To fix: Build the React app with 'npm run build'</p>
         """, 500
     except Exception as e:
@@ -459,7 +460,7 @@ def serve_static(path):
     
     try:
         # Check for dist directory in multiple possible locations
-        possible_dirs = ['dist', '../dist', './dist']
+        possible_dirs = ['/app/dist', 'dist', '../dist', './dist']
         for dist_dir in possible_dirs:
             if os.path.exists(os.path.join(dist_dir, path)):
                 return send_from_directory(dist_dir, path)
