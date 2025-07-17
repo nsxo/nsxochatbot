@@ -72,31 +72,44 @@ async def get_or_create_user_topic(bot: Bot, user_id: int, username: str = None,
 
 
 async def send_user_info_card(bot: Bot, user_id: int, topic_id: int, username: str = None, first_name: str = None) -> None:
-    """Send and pin a user info card in the topic."""
+    """Send and pin a user info card in the topic with enhanced details."""
     try:
-        # Get user information
+        # Get comprehensive user information
         user_credits = database.get_user_credits_optimized(user_id)
         user_info = database.get_user_info(user_id)
         
-        # Create info card
+        # Get purchase history and tier information
+        tier_emoji, tier_text = get_user_tier_info(user_credits)
+        total_purchases = get_user_purchase_count(user_id)
+        join_date = user_info.get('created_at', 'Unknown') if user_info else 'Unknown'
+        
+        # Create enhanced info card matching the documentation specs
         display_name = f"{first_name or 'Unknown'}"
         username_text = f"@{username}" if username else "No username"
         
-        info_text = f"""
-👤 **User Profile**
+        info_text = f"""👤 **User Profile Card**
 
-**Name:** {display_name}
-**Username:** {username_text}
-**User ID:** `{user_id}`
-**Credits:** {user_credits}
-**Status:** {'🚫 Banned' if user_info and user_info.get('is_banned') else '✅ Active'}
-**Joined:** {user_info.get('created_at', 'Unknown') if user_info else 'Unknown'}
+**📱 User Details:**
+• Name: {display_name}
+• Username: {username_text}
+• User ID: `{user_id}`
 
-💬 **Quick Actions:**
+**💰 Account Status:**
+• Credits: {user_credits}
+• Tier: {tier_emoji} {tier_text}
+• Total Purchases: {total_purchases}
+• Status: {'🚫 Banned' if user_info and user_info.get('is_banned') else '✅ Active'}
+
+**📅 Account Info:**
+• Joined: {format_join_date(join_date)}
+• Last Active: Recent
+
+**💬 Admin Actions:**
 Reply to any message in this topic to send to user
+Use admin commands for credit management
         """.strip()
         
-        # Send the info card
+        # Send the enhanced info card
         message = await bot.send_message(
             chat_id=settings.ADMIN_GROUP_ID,
             text=info_text,
@@ -110,16 +123,15 @@ Reply to any message in this topic to send to user
                 chat_id=settings.ADMIN_GROUP_ID,
                 message_id=message.message_id
             )
-            logger.info(f"📌 Pinned info card for user {user_id} in topic {topic_id}")
+            logger.info(f"📌 Pinned enhanced info card for user {user_id} in topic {topic_id}")
         except TelegramError as e:
             logger.warning(f"Could not pin info card: {e}")
             
     except Exception as e:
-        logger.error(f"Error sending user info card: {e}")
-
+        logger.error(f"Error sending enhanced user info card: {e}")
 
 async def handle_user_message_to_topic(bot: Bot, update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
-    """Handle forwarding user message to their topic. Returns True if handled via topic."""
+    """Enhanced user message handling with all media types support."""
     try:
         user_id = update.effective_user.id
         
@@ -139,19 +151,29 @@ async def handle_user_message_to_topic(bot: Bot, update: Update, context: Contex
             logger.warning(f"Could not get/create topic for user {user_id}, falling back to private forwarding")
             return False
         
-        # Forward message to topic
+        # Forward message to topic with enhanced header
         try:
-            # Send header with user info
+            # Get user information for header
             user_credits = database.get_user_credits_optimized(user_id)
-            header = f"💬 New message (Balance: {user_credits} credits)"
+            tier_emoji, tier_text = get_user_tier_info(user_credits)
+            
+            # Determine message type for header
+            message_type = get_message_type(update.message)
+            
+            # Enhanced header with message type and user info
+            header = f"""💬 **New {message_type} message**
+From: @{update.effective_user.username or 'Unknown'} {tier_emoji} {tier_text} (ID: `{user_id}`)
+Credits: {user_credits} | Time: None
+──────────────────────────────────"""
             
             await bot.send_message(
                 chat_id=settings.ADMIN_GROUP_ID,
                 text=header,
-                message_thread_id=topic_id
+                message_thread_id=topic_id,
+                parse_mode='Markdown'
             )
             
-            # Forward the actual message
+            # Forward the actual message (supports all media types)
             await update.message.forward(
                 chat_id=settings.ADMIN_GROUP_ID,
                 message_thread_id=topic_id
@@ -160,7 +182,7 @@ async def handle_user_message_to_topic(bot: Bot, update: Update, context: Contex
             # Update conversation activity
             database.update_conversation_activity(user_id, topic_id)
             
-            logger.info(f"✅ Forwarded message from user {user_id} to topic {topic_id}")
+            logger.info(f"✅ Forwarded {message_type} from user {user_id} to topic {topic_id}")
             return True
             
         except TelegramError as e:
@@ -171,9 +193,8 @@ async def handle_user_message_to_topic(bot: Bot, update: Update, context: Contex
         logger.error(f"Error in handle_user_message_to_topic: {e}")
         return False
 
-
 async def handle_admin_topic_reply(bot: Bot, update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
-    """Handle admin replies in topics. Returns True if handled as topic reply."""
+    """Enhanced admin topic reply handling with all message types support."""
     try:
         # Check if this is in the admin group and has a message thread ID
         if (update.effective_chat.id != settings.ADMIN_GROUP_ID or 
@@ -193,15 +214,54 @@ async def handle_admin_topic_reply(bot: Bot, update: Update, context: ContextTyp
             logger.warning(f"No user found for topic {topic_id}")
             return False
         
-        # Forward admin's message to the user
+        # Forward admin's message to the user (supports all message types)
         try:
-            await update.message.copy(chat_id=target_user_id)
+            # Handle different message types
+            if update.message.text:
+                await bot.send_message(chat_id=target_user_id, text=update.message.text)
+            elif update.message.photo:
+                await bot.send_photo(
+                    chat_id=target_user_id,
+                    photo=update.message.photo[-1].file_id,
+                    caption=update.message.caption
+                )
+            elif update.message.video:
+                await bot.send_video(
+                    chat_id=target_user_id,
+                    video=update.message.video.file_id,
+                    caption=update.message.caption
+                )
+            elif update.message.document:
+                await bot.send_document(
+                    chat_id=target_user_id,
+                    document=update.message.document.file_id,
+                    caption=update.message.caption
+                )
+            elif update.message.voice:
+                await bot.send_voice(
+                    chat_id=target_user_id,
+                    voice=update.message.voice.file_id
+                )
+            elif update.message.sticker:
+                await bot.send_sticker(
+                    chat_id=target_user_id,
+                    sticker=update.message.sticker.file_id
+                )
+            else:
+                # Fallback: copy the message
+                await update.message.copy(chat_id=target_user_id)
             
-            # Add checkmark reaction to confirm
+            # Add checkmark reaction to confirm (enhanced UX)
             try:
                 await update.message.add_reaction("✅")
             except:
-                pass  # Reactions might not be available
+                # Fallback: reply with checkmark if reactions not available
+                await bot.send_message(
+                    chat_id=settings.ADMIN_GROUP_ID,
+                    text="✅ Message sent to user",
+                    message_thread_id=topic_id,
+                    reply_to_message_id=update.message.message_id
+                )
                 
             # Update conversation activity
             database.update_conversation_activity(target_user_id, topic_id)
@@ -211,13 +271,61 @@ async def handle_admin_topic_reply(bot: Bot, update: Update, context: ContextTyp
             
         except TelegramError as e:
             logger.error(f"Failed to forward admin reply to user {target_user_id}: {e}")
-            await update.message.reply_text(f"❌ Failed to send message to user. Error: {e}")
+            await bot.send_message(
+                chat_id=settings.ADMIN_GROUP_ID,
+                text=f"❌ Failed to send message to user. Error: {str(e)[:100]}...",
+                message_thread_id=topic_id,
+                reply_to_message_id=update.message.message_id
+            )
             return True  # Still handled, just failed
             
     except Exception as e:
         logger.error(f"Error in handle_admin_topic_reply: {e}")
         return False
 
+# ========================= Helper Functions =========================
+
+def get_user_tier_info(credits: int) -> tuple[str, str]:
+    """Get user tier emoji and text based on credits."""
+    if credits >= 100:
+        return "🏆", "VIP"
+    elif credits >= 50:
+        return "⭐", "Regular"
+    else:
+        return "🆕", "New"
+
+def get_user_purchase_count(user_id: int) -> int:
+    """Get total purchase count for user."""
+    # This would query payment_logs table
+    try:
+        return database.get_user_purchase_count(user_id)
+    except:
+        return 0
+
+def get_message_type(message) -> str:
+    """Determine message type for display."""
+    if message.photo:
+        return "photo"
+    elif message.video:
+        return "video"
+    elif message.voice:
+        return "voice"
+    elif message.document:
+        return "document"
+    elif message.sticker:
+        return "sticker"
+    elif message.text:
+        return "text"
+    else:
+        return "media"
+
+def format_join_date(date_str) -> str:
+    """Format join date for display."""
+    try:
+        # Add proper date formatting here
+        return str(date_str)[:10] if date_str else "Unknown"
+    except:
+        return "Unknown"
 
 def is_topic_enabled() -> bool:
     """Check if topic management is enabled and configured."""

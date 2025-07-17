@@ -1004,3 +1004,40 @@ def get_week_new_users() -> int:
     except Exception as e:
         logger.error(f"Error getting week new users: {e}")
         return 0
+
+def get_user_purchase_count(user_id: int) -> int:
+    """Get total purchase count for user."""
+    try:
+        query = """
+        SELECT COUNT(*) FROM payment_logs WHERE telegram_id = %s
+        """ if db_manager._db_type == 'postgresql' else """
+        SELECT COUNT(*) FROM payment_logs WHERE telegram_id = ?
+        """
+        result = db_manager.execute_query(query, (user_id,), fetch_one=True)
+        return result[0] if result else 0
+    except Exception as e:
+        logger.error(f"Error getting user purchase count: {e}")
+        return 0
+
+def get_topic_statistics() -> Dict[str, int]:
+    """Get topic system statistics."""
+    try:
+        total_topics = db_manager.execute_query(
+            "SELECT COUNT(DISTINCT topic_id) FROM conversations WHERE topic_id IS NOT NULL",
+            fetch_one=True
+        )[0] if db_manager.execute_query("SELECT COUNT(DISTINCT topic_id) FROM conversations WHERE topic_id IS NOT NULL", fetch_one=True) else 0
+        
+        active_topics = get_active_conversations_count()
+        
+        return {
+            'total_topics': int(total_topics),
+            'active_topics': active_topics,
+            'topic_enabled': bool(settings.ADMIN_GROUP_ID)
+        }
+    except Exception as e:
+        logger.error(f"Error getting topic statistics: {e}")
+        return {
+            'total_topics': 0,
+            'active_topics': 0,
+            'topic_enabled': False
+        }

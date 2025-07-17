@@ -300,6 +300,74 @@ Access your customer portal to:
     
     await update.message.reply_text(message, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
 
+async def topic_status_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Check topic system status - /topic_status (admin only)"""
+    if not is_admin(update):
+        await safe_reply(update, "⛔ You are not authorized.")
+        return
+    
+    # Check topic system configuration
+    admin_group_configured = bool(settings.ADMIN_GROUP_ID)
+    topic_stats = database.get_topic_statistics()
+    
+    # Test admin group accessibility
+    group_accessible = False
+    forum_enabled = False
+    if settings.ADMIN_GROUP_ID:
+        try:
+            chat = await context.bot.get_chat(settings.ADMIN_GROUP_ID)
+            group_accessible = True
+            forum_enabled = getattr(chat, 'is_forum', False)
+        except Exception as e:
+            logger.error(f"Cannot access admin group: {e}")
+    
+    # Generate status report
+    status_emoji = "✅" if admin_group_configured and group_accessible and forum_enabled else "⚠️"
+    
+    message = f"""🎉 **Topic System Status** {status_emoji}
+
+**🔧 Configuration:**
+• Admin Group ID: {settings.ADMIN_GROUP_ID or 'Not configured'}
+• Group Accessible: {'✅ Yes' if group_accessible else '❌ No'}
+• Forum Enabled: {'✅ Yes' if forum_enabled else '❌ No'}
+
+**📊 Statistics:**
+• Total Topics Created: {topic_stats.get('total_topics', 0)}
+• Active Conversations: {topic_stats.get('active_topics', 0)}
+• System Status: {'🟢 Operational' if admin_group_configured and group_accessible else '🔴 Issues'}
+
+**✅ Features Available:**
+• Auto Topic Creation: {'✅' if admin_group_configured else '❌'}
+• User Info Cards: {'✅' if admin_group_configured else '❌'}
+• Direct Topic Replies: {'✅' if admin_group_configured and forum_enabled else '❌'}
+• Media Support: ✅ All message types
+• Fallback System: ✅ Private chat backup
+• Admin Tools: ✅ Full integration
+
+**🧪 Testing:**
+To test the system:
+1. Send a message to @nsxochatbot from another account
+2. Check admin group for new topic creation
+3. Reply in the topic to test admin responses
+
+**📋 Requirements:**
+• Admin group must be a forum/supergroup
+• Bot must be admin with 'Manage Topics' permission
+• Forum topics must be enabled in group settings"""
+
+    keyboard = [
+        [
+            InlineKeyboardButton("🔄 Refresh Status", callback_data='refresh_topic_status'),
+            InlineKeyboardButton("📊 View Topics", callback_data='view_all_topics')
+        ],
+        [
+            InlineKeyboardButton("🧪 Test Topic Creation", callback_data='test_topic'),
+            InlineKeyboardButton("⚙️ Topic Settings", callback_data='topic_settings')
+        ]
+    ]
+    
+    await safe_reply(update, message, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
 # ========================= Enhanced Visual Components =========================
 
 def format_user_tier(credits: int) -> tuple[str, str]:
@@ -334,6 +402,7 @@ def get_enhanced_admin_commands() -> List[CommandHandler]:
         CommandHandler("dashboard", dashboard_command),
         CommandHandler("users", users_command),
         CommandHandler("settings", settings_command),
+        CommandHandler("topic_status", topic_status_command),  # Add topic status command
     ] 
 
 def get_enhanced_user_commands() -> List[CommandHandler]:
