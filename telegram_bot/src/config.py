@@ -5,6 +5,7 @@ Configuration management for the Telegram Bot, powered by Pydantic.
 
 from typing import Optional, List, Dict
 from pydantic_settings import BaseSettings, SettingsConfigDict
+import os
 
 class Settings(BaseSettings):
     """
@@ -25,7 +26,7 @@ class Settings(BaseSettings):
     ADMIN_GROUP_ID: Optional[int] = None
     STRIPE_API_KEY: Optional[str] = None
     STRIPE_WEBHOOK_SECRET: Optional[str] = None
-    WEBHOOK_PORT: int = 8000
+    WEBHOOK_PORT: int = int(os.getenv('PORT', '8000'))  # Use Railway's PORT variable if available
     LOG_LEVEL: str = 'INFO'
     REDIS_URL: Optional[str] = None
     SENTRY_DSN: Optional[str] = None
