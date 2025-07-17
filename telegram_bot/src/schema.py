@@ -24,17 +24,15 @@ def get_schema_queries() -> List[str]:
             time_credits INTEGER DEFAULT 0,
             time_credits_seconds INTEGER DEFAULT 0,
             stripe_customer_id VARCHAR(255),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             is_banned BOOLEAN DEFAULT FALSE,
             ban_reason TEXT,
             last_low_balance_notification TIMESTAMP,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             auto_recharge_enabled BOOLEAN DEFAULT false,
             auto_recharge_amount INTEGER DEFAULT 10,
-            auto_recharge_threshold INTEGER DEFAULT 5
+            auto_recharge_threshold INTEGER DEFAULT 5,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """,
         """

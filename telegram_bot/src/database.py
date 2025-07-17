@@ -160,6 +160,9 @@ class DatabaseManager:
 
             logger.info("Database schema ensured")
             
+            # Run database migrations for existing databases
+            self._run_migrations()
+            
             # Initialize default data after schema creation
             try:
                 initialize_default_data()
@@ -169,6 +172,94 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Failed to ensure schema: {e}")
             # Don't raise - allow the app to continue without schema
+
+    def _run_migrations(self) -> None:
+        """Run database migrations for existing databases."""
+        try:
+            with self.get_connection() as conn:
+                if self._db_type == 'postgresql':
+                    with conn.cursor() as cursor:
+                        # Check and add missing columns
+                        self._add_missing_columns_postgresql(cursor)
+                        conn.commit()
+                else:  # SQLite
+                    cursor = conn.cursor()
+                    self._add_missing_columns_sqlite(cursor)
+                    conn.commit()
+            
+            logger.info("Database migrations completed successfully")
+        except Exception as e:
+            logger.warning(f"Failed to run migrations: {e}")
+
+    def _add_missing_columns_postgresql(self, cursor) -> None:
+        """Add missing columns to PostgreSQL database."""
+        migrations = [
+            # Add stripe_customer_id if missing
+            {
+                'table': 'users',
+                'column': 'stripe_customer_id',
+                'definition': 'VARCHAR(255)',
+                'check_query': "SELECT column_name FROM information_schema.columns WHERE table_name='users' AND column_name='stripe_customer_id'"
+            },
+            # Add auto-recharge columns if missing
+            {
+                'table': 'users', 
+                'column': 'auto_recharge_enabled',
+                'definition': 'BOOLEAN DEFAULT false',
+                'check_query': "SELECT column_name FROM information_schema.columns WHERE table_name='users' AND column_name='auto_recharge_enabled'"
+            },
+            {
+                'table': 'users',
+                'column': 'auto_recharge_amount', 
+                'definition': 'INTEGER DEFAULT 10',
+                'check_query': "SELECT column_name FROM information_schema.columns WHERE table_name='users' AND column_name='auto_recharge_amount'"
+            },
+            {
+                'table': 'users',
+                'column': 'auto_recharge_threshold',
+                'definition': 'INTEGER DEFAULT 5', 
+                'check_query': "SELECT column_name FROM information_schema.columns WHERE table_name='users' AND column_name='auto_recharge_threshold'"
+            },
+            {
+                'table': 'users',
+                'column': 'last_low_balance_notification',
+                'definition': 'TIMESTAMP',
+                'check_query': "SELECT column_name FROM information_schema.columns WHERE table_name='users' AND column_name='last_low_balance_notification'"
+            }
+        ]
+        
+        for migration in migrations:
+            try:
+                cursor.execute(migration['check_query'])
+                if not cursor.fetchone():
+                    alter_query = f"ALTER TABLE {migration['table']} ADD COLUMN {migration['column']} {migration['definition']}"
+                    cursor.execute(alter_query)
+                    logger.info(f"Added missing column {migration['column']} to {migration['table']}")
+            except Exception as e:
+                logger.warning(f"Failed to add column {migration['column']}: {e}")
+
+    def _add_missing_columns_sqlite(self, cursor) -> None:
+        """Add missing columns to SQLite database."""
+        # SQLite ALTER TABLE is more limited, we'll check and add columns one by one
+        migrations = [
+            ('users', 'stripe_customer_id', 'TEXT'),
+            ('users', 'auto_recharge_enabled', 'INTEGER DEFAULT 0'),
+            ('users', 'auto_recharge_amount', 'INTEGER DEFAULT 10'),
+            ('users', 'auto_recharge_threshold', 'INTEGER DEFAULT 5'),
+            ('users', 'last_low_balance_notification', 'TEXT')
+        ]
+        
+        for table, column, definition in migrations:
+            try:
+                # Check if column exists
+                cursor.execute(f"PRAGMA table_info({table})")
+                columns = [row[1] for row in cursor.fetchall()]
+                
+                if column not in columns:
+                    cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+                    logger.info(f"Added missing column {column} to {table}")
+            except Exception as e:
+                logger.warning(f"Failed to add column {column}: {e}")
 
     def _convert_to_sqlite(self, query: str) -> str:
         """Convert PostgreSQL query to SQLite compatible format."""
