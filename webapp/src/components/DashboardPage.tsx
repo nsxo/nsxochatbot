@@ -100,14 +100,6 @@ const DashboardPage: React.FC = () => {
       amount: '$50.00',
       timestamp: '23 minutes ago',
       status: 'completed'
-    },
-    {
-      id: '5',
-      type: 'system',
-      user: 'system',
-      description: 'Database backup completed',
-      timestamp: '1 hour ago',
-      status: 'completed'
     }
   ];
 
@@ -159,27 +151,27 @@ const DashboardPage: React.FC = () => {
 
   return (
     <div>
-      {/* Dashboard Header with Refresh Info */}
-      <div className="flex justify-between items-center mb-lg">
+      {/* Compact Dashboard Header */}
+      <div className="flex justify-between items-center mb-md">
         <div>
-          <div className="flex items-center gap-md mb-sm">
-            <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>Dashboard Overview</h2>
+          <div className="flex items-center gap-md mb-xs">
+            <h2 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1.5rem' }}>Overview</h2>
             <button 
               className="btn btn-secondary btn-sm"
               onClick={refreshData}
               disabled={loading}
               title="Refresh dashboard data"
             >
-              {loading ? '🔄' : '🔄'} Refresh
+              {loading ? '🔄' : '🔄'}
             </button>
           </div>
-          <p className="text-secondary">
-            Last updated: {lastRefresh.toLocaleTimeString()} • Auto-refresh every 30 seconds
+          <p className="text-muted" style={{ fontSize: '0.75rem', margin: 0 }}>
+            Updated {lastRefresh.toLocaleTimeString()} • Auto-refresh 30s
           </p>
         </div>
       </div>
 
-      {/* Key Metrics Grid */}
+      {/* Compact Metrics Grid */}
       <div className="stats-grid">
         <StatCard
           title="Total Users"
@@ -202,7 +194,7 @@ const DashboardPage: React.FC = () => {
           loading={loading}
         />
         <StatCard
-          title="Messages Today"
+          title="Messages"
           value={stats?.messagesToday || 0}
           icon="💬"
           change={{
@@ -212,7 +204,7 @@ const DashboardPage: React.FC = () => {
           loading={loading}
         />
         <StatCard
-          title="Available Credits"
+          title="Credits"
           value={stats?.totalCredits?.toLocaleString() || 0}
           icon="💎"
           change={{
@@ -222,7 +214,7 @@ const DashboardPage: React.FC = () => {
           loading={loading}
         />
         <StatCard
-          title="Monthly Revenue"
+          title="Revenue"
           value={`$${stats?.estimatedRevenue || 0}`}
           icon="💰"
           change={{
@@ -243,55 +235,35 @@ const DashboardPage: React.FC = () => {
         />
       </div>
 
-      {/* Content Grid - Recent Activity and System Health */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--spacing-lg)', marginBottom: 'var(--spacing-lg)' }}>
+      {/* Main Content Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-lg)' }}>
         
-        {/* Recent Activity Feed */}
+        {/* Compact Activity Feed */}
         <div className="card">
           <div className="card-header">
             <h3 className="card-title">Recent Activity</h3>
-            <div className="flex gap-sm">
-              <span className="badge badge-info">{recentActivities.length} events</span>
-              <button className="btn btn-secondary btn-sm">📋 View All</button>
+            <div className="flex gap-xs">
+              <span className="badge badge-info text-small">{recentActivities.length}</span>
+              <button className="btn btn-secondary btn-sm">View All</button>
             </div>
           </div>
           <div className="card-body">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
               {recentActivities.map((activity) => (
-                <div 
-                  key={activity.id} 
-                  className="flex items-center justify-between p-md rounded"
-                  style={{ backgroundColor: 'var(--bg-tertiary)' }}
-                >
-                  <div className="flex items-center gap-md">
-                    <div 
-                      style={{
-                        width: '40px',
-                        height: '40px',
-                        borderRadius: 'var(--radius-md)',
-                        backgroundColor: 'var(--bg-secondary)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '1.2rem',
-                        border: `2px solid ${getActivityColor(activity.type)}`
-                      }}
-                    >
-                      {getActivityIcon(activity.type)}
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--text-primary)' }}>
-                        {activity.description}
-                      </div>
-                      <div className="text-secondary text-small">
-                        {activity.user} • {activity.timestamp}
-                      </div>
-                    </div>
+                <div key={activity.id} className="activity-item">
+                  <div 
+                    className="activity-icon"
+                    style={{ borderColor: getActivityColor(activity.type) }}
+                  >
+                    {getActivityIcon(activity.type)}
                   </div>
-                  <div className="flex items-center gap-md">
+                  <div className="activity-content">
+                    <div className="activity-title">{activity.description}</div>
+                    <div className="activity-meta">{activity.user} • {activity.timestamp}</div>
+                  </div>
+                  <div className="flex items-center gap-xs">
                     {activity.amount && (
-                      <span style={{ 
-                        fontWeight: 'var(--font-weight-medium)', 
+                      <span className="activity-amount" style={{ 
                         color: activity.type === 'purchase' ? 'var(--accent-green)' : 'var(--text-primary)'
                       }}>
                         {activity.amount}
@@ -310,44 +282,37 @@ const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* System Health & Quick Stats */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
+        {/* Compact System Health & Actions */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
           
           {/* System Health */}
           <div className="card">
             <div className="card-header">
-              <h3 className="card-title">System Health</h3>
+              <h3 className="card-title">System</h3>
               <div className="badge badge-success">Healthy</div>
             </div>
             <div className="card-body">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-sm">
-                    <div style={{ width: '12px', height: '12px', backgroundColor: 'var(--accent-green)', borderRadius: '50%' }}></div>
-                    <span className="text-primary">Database</span>
+                  <div className="flex items-center gap-xs">
+                    <div style={{ width: '8px', height: '8px', backgroundColor: 'var(--accent-green)', borderRadius: '50%' }}></div>
+                    <span style={{ fontSize: '0.875rem', color: 'var(--text-primary)' }}>Database</span>
                   </div>
-                  <span className="text-secondary text-small">Connected</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Connected</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-sm">
-                    <div style={{ width: '12px', height: '12px', backgroundColor: 'var(--accent-green)', borderRadius: '50%' }}></div>
-                    <span className="text-primary">Bot API</span>
+                  <div className="flex items-center gap-xs">
+                    <div style={{ width: '8px', height: '8px', backgroundColor: 'var(--accent-green)', borderRadius: '50%' }}></div>
+                    <span style={{ fontSize: '0.875rem', color: 'var(--text-primary)' }}>Bot API</span>
                   </div>
-                  <span className="text-secondary text-small">Online</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Online</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-sm">
-                    <div style={{ width: '12px', height: '12px', backgroundColor: 'var(--accent-green)', borderRadius: '50%' }}></div>
-                    <span className="text-primary">Webhooks</span>
+                  <div className="flex items-center gap-xs">
+                    <div style={{ width: '8px', height: '8px', backgroundColor: 'var(--accent-blue)', borderRadius: '50%' }}></div>
+                    <span style={{ fontSize: '0.875rem', color: 'var(--text-primary)' }}>Payments</span>
                   </div>
-                  <span className="text-secondary text-small">Active</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-sm">
-                    <div style={{ width: '12px', height: '12px', backgroundColor: 'var(--accent-blue)', borderRadius: '50%' }}></div>
-                    <span className="text-primary">Payments</span>
-                  </div>
-                  <span className="text-secondary text-small">Processing</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Processing</span>
                 </div>
               </div>
             </div>
@@ -356,21 +321,21 @@ const DashboardPage: React.FC = () => {
           {/* Quick Actions */}
           <div className="card">
             <div className="card-header">
-              <h3 className="card-title">Quick Actions</h3>
+              <h3 className="card-title">Actions</h3>
             </div>
             <div className="card-body">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
-                <button className="btn btn-secondary w-full">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
+                <button className="btn btn-secondary w-full btn-sm">
                   📊 Export Data
                 </button>
-                <button className="btn btn-secondary w-full">
-                  👥 View Users
+                <button className="btn btn-secondary w-full btn-sm">
+                  👥 Users
                 </button>
-                <button className="btn btn-secondary w-full">
-                  ⚙️ Bot Settings
+                <button className="btn btn-secondary w-full btn-sm">
+                  ⚙️ Settings
                 </button>
-                <button className="btn btn-success w-full">
-                  💎 Manage Packages
+                <button className="btn btn-success w-full btn-sm">
+                  💎 Packages
                 </button>
               </div>
             </div>
@@ -378,45 +343,45 @@ const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Performance Metrics */}
+      {/* Compact Performance Metrics */}
       <div className="card">
         <div className="card-header">
-          <h3 className="card-title">Performance Metrics</h3>
-          <div className="flex gap-sm">
+          <h3 className="card-title">Performance</h3>
+          <div className="flex gap-xs">
             <button className="btn btn-success btn-sm">Today</button>
-            <button className="btn btn-secondary btn-sm">7 Days</button>
-            <button className="btn btn-secondary btn-sm">30 Days</button>
+            <button className="btn btn-secondary btn-sm">7D</button>
+            <button className="btn btn-secondary btn-sm">30D</button>
           </div>
         </div>
         <div className="card-body">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--spacing-lg)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 'var(--spacing-md)' }}>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '2rem', color: 'var(--accent-green)', marginBottom: 'var(--spacing-sm)' }}>
+              <div style={{ fontSize: '1.5rem', color: 'var(--accent-green)', marginBottom: 'var(--spacing-xs)' }}>
                 98.5%
               </div>
-              <div style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--text-primary)' }}>Uptime</div>
-              <div className="text-secondary text-small">Last 30 days</div>
+              <div style={{ fontSize: '0.875rem', fontWeight: 'var(--font-weight-medium)', color: 'var(--text-primary)' }}>Uptime</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Last 30 days</div>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '2rem', color: 'var(--accent-blue)', marginBottom: 'var(--spacing-sm)' }}>
+              <div style={{ fontSize: '1.5rem', color: 'var(--accent-blue)', marginBottom: 'var(--spacing-xs)' }}>
                 1.2s
               </div>
-              <div style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--text-primary)' }}>Avg Response</div>
-              <div className="text-secondary text-small">Message processing</div>
+              <div style={{ fontSize: '0.875rem', fontWeight: 'var(--font-weight-medium)', color: 'var(--text-primary)' }}>Response</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Avg processing</div>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '2rem', color: 'var(--accent-orange)', marginBottom: 'var(--spacing-sm)' }}>
-                {((stats?.totalCredits || 0) / 10).toFixed(1)}k
+              <div style={{ fontSize: '1.5rem', color: 'var(--accent-orange)', marginBottom: 'var(--spacing-xs)' }}>
+                {((stats?.totalCredits || 0) / 100).toFixed(1)}k
               </div>
-              <div style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--text-primary)' }}>Credits Used</div>
-              <div className="text-secondary text-small">This month</div>
+              <div style={{ fontSize: '0.875rem', fontWeight: 'var(--font-weight-medium)', color: 'var(--text-primary)' }}>Credits Used</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>This month</div>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '2rem', color: 'var(--accent-green)', marginBottom: 'var(--spacing-sm)' }}>
+              <div style={{ fontSize: '1.5rem', color: 'var(--accent-green)', marginBottom: 'var(--spacing-xs)' }}>
                 ${((stats?.estimatedRevenue || 0) * 12).toFixed(0)}
               </div>
-              <div style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--text-primary)' }}>Annual Projected</div>
-              <div className="text-secondary text-small">Based on current rate</div>
+              <div style={{ fontSize: '0.875rem', fontWeight: 'var(--font-weight-medium)', color: 'var(--text-primary)' }}>Projected</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Annual revenue</div>
             </div>
           </div>
         </div>

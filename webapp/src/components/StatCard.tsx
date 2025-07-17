@@ -13,27 +13,30 @@ interface StatCardProps {
 
 const StatCard: React.FC<StatCardProps> = ({ title, value, icon, change, loading = false }) => {
   return (
-    <div className="stat-card">
-      <div className="stat-header">
-        <div className="stat-title">{title}</div>
-        <div className="stat-icon">{icon}</div>
-      </div>
-      
-      <div className="stat-value">
-        {loading ? (
-          <div className="loading-spinner" style={{ margin: '1rem 0' }}></div>
-        ) : (
-          value
+    <div className="stat-card-compact">
+      <div className="stat-card-content">
+        <div className="stat-header-compact">
+          <div className="stat-icon-compact">{icon}</div>
+          <div className="stat-title-compact">{title}</div>
+        </div>
+        
+        <div className="stat-value-compact">
+          {loading ? (
+            <div className="loading-spinner" style={{ margin: '0.5rem 0' }}></div>
+          ) : (
+            <span>{value}</span>
+          )}
+        </div>
+        
+        {change && !loading && (
+          <div className={`stat-change-compact ${change.type}`}>
+            <span className="stat-change-icon">
+              {change.type === 'positive' ? '↗' : '↘'}
+            </span>
+            <span className="stat-change-value">{change.value}</span>
+          </div>
         )}
       </div>
-      
-      {change && !loading && (
-        <div className={`stat-change ${change.type}`}>
-          <span>{change.type === 'positive' ? '↗️' : '↘️'}</span>
-          <span>{change.value}</span>
-          <span className="text-secondary">vs last month</span>
-        </div>
-      )}
     </div>
   );
 };
