@@ -37,14 +37,31 @@ except ImportError:
 
 def get_db_connection():
     """Get database connection."""
-    if not HAS_POSTGRES or not DATABASE_URL:
-        logger.warning("Database not available - using fallback mode")
+    if not HAS_POSTGRES:
+        logger.warning("psycopg2 not available - using fallback mode")
+        return None
+        
+    if not DATABASE_URL:
+        logger.warning("DATABASE_URL not configured - using fallback mode")
         return None
     
     try:
-        return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        # Try to establish connection with timeout
+        conn = psycopg2.connect(
+            DATABASE_URL, 
+            cursor_factory=RealDictCursor,
+            connect_timeout=10
+        )
+        # Test the connection
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT 1")
+        logger.info("Database connection successful")
+        return conn
+    except psycopg2.OperationalError as e:
+        logger.error(f"Database connection failed: {e}")
+        return None
     except Exception as e:
-        logger.error(f"Database connection error: {e}")
+        logger.error(f"Unexpected database error: {e}")
         return None
 
 @app.route('/api/health')
@@ -67,6 +84,7 @@ def health_check():
         'environment': os.getenv('RAILWAY_ENVIRONMENT', 'unknown'),
         'has_postgres': HAS_POSTGRES,
         'database_url_configured': bool(DATABASE_URL),
+        'database_url_prefix': DATABASE_URL[:20] + '...' if DATABASE_URL else None,
         'working_directory': os.getcwd(),
         'dist_directory_found': dist_found,
         'available_files': os.listdir('.') if os.path.exists('.') else []
