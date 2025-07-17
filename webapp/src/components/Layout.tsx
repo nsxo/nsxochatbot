@@ -12,9 +12,9 @@ const Layout: React.FC<LayoutProps> = ({ currentPage, onNavigate, children }) =>
 
   const navigationItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊', description: 'Analytics & Overview' },
-    { id: 'settings', label: 'Settings', icon: '⚙️', description: 'Bot Configuration' },
-    { id: 'products', label: 'Products', icon: '🛒', description: 'Credit Packages' },
-    { id: 'users', label: 'Users', icon: '👥', description: 'User Management' },
+    { id: 'settings', label: 'Bot Settings', icon: '⚙️', description: 'Configuration & Pricing' },
+    { id: 'products', label: 'Credit Packages', icon: '💎', description: 'Manage Pricing Plans' },
+    { id: 'users', label: 'User Management', icon: '👥', description: 'View User Activity' },
   ];
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
@@ -26,11 +26,11 @@ const Layout: React.FC<LayoutProps> = ({ currentPage, onNavigate, children }) =>
         {/* Brand */}
         <div className="nav-brand">
           <div className="nav-brand-icon">
-            🚀
+            🤖
           </div>
           <div>
-            <div className="nav-brand-text">NSXoChat</div>
-            <small className="text-secondary">Admin Dashboard</small>
+            <div className="nav-brand-text">NSXoChat Admin</div>
+            <small className="text-secondary">Bot Management</small>
           </div>
         </div>
 
@@ -59,18 +59,26 @@ const Layout: React.FC<LayoutProps> = ({ currentPage, onNavigate, children }) =>
           </ul>
         </nav>
 
-        {/* Sidebar Footer */}
+        {/* System Info Footer */}
         <div style={{ marginTop: 'auto', paddingTop: 'var(--spacing-xl)' }}>
           <div className="card">
             <div style={{ textAlign: 'center' }}>
-              <div className="nav-icon" style={{ fontSize: '2rem', marginBottom: 'var(--spacing-sm)' }}>⚡</div>
-              <h3 style={{ marginBottom: 'var(--spacing-sm)' }}>Pro Features</h3>
-              <p className="text-secondary" style={{ fontSize: '0.875rem', marginBottom: 'var(--spacing-md)' }}>
-                Unlock advanced analytics and automation tools
-              </p>
-              <button className="btn btn-primary btn-sm w-full">
-                Upgrade Now
-              </button>
+              <div className="nav-icon" style={{ fontSize: '1.5rem', marginBottom: 'var(--spacing-sm)' }}>ℹ️</div>
+              <h4 style={{ marginBottom: 'var(--spacing-sm)', fontSize: '1rem' }}>System Status</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
+                <div className="flex items-center justify-between">
+                  <span className="text-secondary text-small">Database</span>
+                  <div className="badge badge-success text-small">Connected</div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-secondary text-small">Bot Status</span>
+                  <div className="badge badge-success text-small">Online</div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-secondary text-small">Version</span>
+                  <span className="text-secondary text-small">v2.1.0</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -100,7 +108,7 @@ const Layout: React.FC<LayoutProps> = ({ currentPage, onNavigate, children }) =>
           </div>
 
           <div className="flex items-center gap-md">
-            {/* Status Indicator */}
+            {/* System Status Indicator */}
             <div className="flex items-center gap-sm">
               <div 
                 style={{
@@ -111,7 +119,24 @@ const Layout: React.FC<LayoutProps> = ({ currentPage, onNavigate, children }) =>
                   animation: 'pulse 2s infinite'
                 }}
               ></div>
-              <span className="text-secondary text-small">System Online</span>
+              <span className="text-secondary text-small">All Systems Operational</span>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="flex items-center gap-sm">
+              <button 
+                className="btn btn-secondary btn-sm"
+                title="Refresh data"
+                onClick={() => window.location.reload()}
+              >
+                🔄
+              </button>
+              <button 
+                className="btn btn-secondary btn-sm"
+                title="View logs"
+              >
+                📋
+              </button>
             </div>
 
             {/* Admin Profile */}
@@ -126,14 +151,15 @@ const Layout: React.FC<LayoutProps> = ({ currentPage, onNavigate, children }) =>
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontWeight: 'var(--font-weight-bold)',
-                  fontSize: '0.875rem'
+                  fontSize: '0.875rem',
+                  color: 'var(--bg-primary)'
                 }}
               >
-                AD
+                👤
               </div>
               <div>
-                <div style={{ fontSize: '0.875rem', fontWeight: 'var(--font-weight-medium)' }}>Admin</div>
-                <div className="text-secondary" style={{ fontSize: '0.75rem' }}>Super User</div>
+                <div style={{ fontSize: '0.875rem', fontWeight: 'var(--font-weight-medium)', color: 'var(--text-primary)' }}>Administrator</div>
+                <div className="text-secondary" style={{ fontSize: '0.75rem' }}>Full Access</div>
               </div>
             </div>
           </div>

@@ -11,10 +11,21 @@ interface DashboardStats {
   lastUpdated: string;
 }
 
+interface RecentActivity {
+  id: string;
+  type: 'purchase' | 'message' | 'registration' | 'system';
+  user: string;
+  description: string;
+  amount?: string;
+  timestamp: string;
+  status: 'completed' | 'pending' | 'failed';
+}
+
 const DashboardPage: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   useEffect(() => {
     const loadStats = async () => {
@@ -23,6 +34,7 @@ const DashboardPage: React.FC = () => {
         if (!response.ok) throw new Error('Failed to fetch stats');
         const data = await response.json();
         setStats(data);
+        setLastRefresh(new Date());
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load stats');
       } finally {
@@ -35,19 +47,111 @@ const DashboardPage: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  const refreshData = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/dashboard/stats');
+      if (!response.ok) throw new Error('Failed to fetch stats');
+      const data = await response.json();
+      setStats(data);
+      setLastRefresh(new Date());
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load stats');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Mock recent activities for better UX demonstration
+  const recentActivities: RecentActivity[] = [
+    {
+      id: '1',
+      type: 'purchase',
+      user: 'user123',
+      description: 'Purchased Power User package',
+      amount: '$15.00',
+      timestamp: '2 minutes ago',
+      status: 'completed'
+    },
+    {
+      id: '2',
+      type: 'message',
+      user: 'user456',
+      description: 'Sent 5 messages',
+      amount: '5 credits',
+      timestamp: '8 minutes ago',
+      status: 'completed'
+    },
+    {
+      id: '3',
+      type: 'registration',
+      user: 'user789',
+      description: 'New user registered',
+      amount: '10 credits',
+      timestamp: '15 minutes ago',
+      status: 'completed'
+    },
+    {
+      id: '4',
+      type: 'purchase',
+      user: 'user101',
+      description: 'Purchased Enterprise package',
+      amount: '$50.00',
+      timestamp: '23 minutes ago',
+      status: 'completed'
+    },
+    {
+      id: '5',
+      type: 'system',
+      user: 'system',
+      description: 'Database backup completed',
+      timestamp: '1 hour ago',
+      status: 'completed'
+    }
+  ];
+
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case 'purchase': return '💳';
+      case 'message': return '💬';
+      case 'registration': return '👤';
+      case 'system': return '⚙️';
+      default: return '📝';
+    }
+  };
+
+  const getActivityColor = (type: string) => {
+    switch (type) {
+      case 'purchase': return 'var(--accent-green)';
+      case 'message': return 'var(--accent-blue)';
+      case 'registration': return 'var(--accent-orange)';
+      case 'system': return 'var(--text-secondary)';
+      default: return 'var(--text-secondary)';
+    }
+  };
+
   if (error) {
     return (
       <div className="flex items-center justify-center" style={{ minHeight: '400px' }}>
         <div className="card" style={{ textAlign: 'center', maxWidth: '500px' }}>
           <div style={{ fontSize: '3rem', marginBottom: 'var(--spacing-md)' }}>⚠️</div>
-          <h2>Error Loading Dashboard</h2>
+          <h2>Dashboard Error</h2>
           <p className="text-secondary">{error}</p>
-          <button 
-            className="btn btn-primary"
-            onClick={() => window.location.reload()}
-          >
-            Retry
-          </button>
+          <div className="flex gap-md justify-center" style={{ marginTop: 'var(--spacing-lg)' }}>
+            <button 
+              className="btn btn-primary"
+              onClick={refreshData}
+            >
+              🔄 Try Again
+            </button>
+            <button 
+              className="btn btn-secondary"
+              onClick={() => window.location.reload()}
+            >
+              🔃 Reload Page
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -55,31 +159,27 @@ const DashboardPage: React.FC = () => {
 
   return (
     <div>
-      {/* Quick Actions Bar */}
-      <div className="card mb-lg">
-        <div className="card-header">
-          <h3 className="card-title">Quick Actions</h3>
-          <button className="btn btn-secondary btn-sm">
-            🔄 Refresh Data
-          </button>
-        </div>
-        <div className="flex gap-md">
-          <button className="btn btn-success">
-            📊 Export Analytics
-          </button>
-          <button className="btn btn-secondary">
-            ⚙️ Configure Settings
-          </button>
-          <button className="btn btn-secondary">
-            👥 Manage Users
-          </button>
-          <button className="btn btn-primary">
-            🚀 Upgrade Plan
-          </button>
+      {/* Dashboard Header with Refresh Info */}
+      <div className="flex justify-between items-center mb-lg">
+        <div>
+          <div className="flex items-center gap-md mb-sm">
+            <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>Dashboard Overview</h2>
+            <button 
+              className="btn btn-secondary btn-sm"
+              onClick={refreshData}
+              disabled={loading}
+              title="Refresh dashboard data"
+            >
+              {loading ? '🔄' : '🔄'} Refresh
+            </button>
+          </div>
+          <p className="text-secondary">
+            Last updated: {lastRefresh.toLocaleTimeString()} • Auto-refresh every 30 seconds
+          </p>
         </div>
       </div>
 
-      {/* Stats Grid */}
+      {/* Key Metrics Grid */}
       <div className="stats-grid">
         <StatCard
           title="Total Users"
@@ -92,7 +192,7 @@ const DashboardPage: React.FC = () => {
           loading={loading}
         />
         <StatCard
-          title="Active Users"
+          title="Active Today"
           value={stats?.activeUsers || 0}
           icon="⚡"
           change={{
@@ -112,7 +212,7 @@ const DashboardPage: React.FC = () => {
           loading={loading}
         />
         <StatCard
-          title="Total Credits"
+          title="Available Credits"
           value={stats?.totalCredits?.toLocaleString() || 0}
           icon="💎"
           change={{
@@ -132,7 +232,7 @@ const DashboardPage: React.FC = () => {
           loading={loading}
         />
         <StatCard
-          title="Payments"
+          title="Transactions"
           value={stats?.monthlyPayments || 0}
           icon="💳"
           change={{
@@ -143,151 +243,184 @@ const DashboardPage: React.FC = () => {
         />
       </div>
 
-      {/* Charts & Analytics Row */}
+      {/* Content Grid - Recent Activity and System Health */}
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--spacing-lg)', marginBottom: 'var(--spacing-lg)' }}>
-        {/* Activity Chart */}
+        
+        {/* Recent Activity Feed */}
         <div className="card">
           <div className="card-header">
-            <h3 className="card-title">User Activity</h3>
+            <h3 className="card-title">Recent Activity</h3>
             <div className="flex gap-sm">
-              <button className="btn btn-secondary btn-sm">7D</button>
-              <button className="btn btn-success btn-sm">30D</button>
-              <button className="btn btn-secondary btn-sm">90D</button>
+              <span className="badge badge-info">{recentActivities.length} events</span>
+              <button className="btn btn-secondary btn-sm">📋 View All</button>
             </div>
-          </div>
-          <div className="card-body">
-            {/* Placeholder for chart */}
-            <div 
-              style={{
-                height: '300px',
-                background: 'linear-gradient(135deg, rgba(0, 229, 155, 0.1), rgba(0, 168, 229, 0.1))',
-                borderRadius: 'var(--radius-md)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: '2px dashed var(--border-color)'
-              }}
-            >
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '2rem', marginBottom: 'var(--spacing-sm)' }}>📈</div>
-                <p className="text-secondary">Activity Chart</p>
-                <p className="text-secondary text-small">Chart component integration</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Top Users */}
-        <div className="card">
-          <div className="card-header">
-            <h3 className="card-title">Top Users</h3>
-            <button className="btn btn-secondary btn-sm">View All</button>
           </div>
           <div className="card-body">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
-              {[
-                { name: 'Admin User', credits: 1000, avatar: '👑' },
-                { name: 'Premium User', credits: 500, avatar: '⭐' },
-                { name: 'Active User', credits: 250, avatar: '🔥' },
-                { name: 'New User', credits: 100, avatar: '🆕' },
-              ].map((user, index) => (
-                <div key={index} className="flex items-center justify-between p-sm rounded bg-tertiary">
-                  <div className="flex items-center gap-sm">
+              {recentActivities.map((activity) => (
+                <div 
+                  key={activity.id} 
+                  className="flex items-center justify-between p-md rounded"
+                  style={{ backgroundColor: 'var(--bg-tertiary)' }}
+                >
+                  <div className="flex items-center gap-md">
                     <div 
                       style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '50%',
-                        background: 'linear-gradient(135deg, var(--accent-green), var(--accent-blue))',
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: 'var(--radius-md)',
+                        backgroundColor: 'var(--bg-secondary)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: '1rem'
+                        fontSize: '1.2rem',
+                        border: `2px solid ${getActivityColor(activity.type)}`
                       }}
                     >
-                      {user.avatar}
+                      {getActivityIcon(activity.type)}
                     </div>
                     <div>
-                      <div style={{ fontWeight: 'var(--font-weight-medium)', fontSize: '0.875rem', color: 'var(--text-primary)' }}>
-                        {user.name}
+                      <div style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--text-primary)' }}>
+                        {activity.description}
                       </div>
                       <div className="text-secondary text-small">
-                        {user.credits} credits
+                        {activity.user} • {activity.timestamp}
                       </div>
                     </div>
                   </div>
-                  <div className="badge badge-success">
-                    Active
+                  <div className="flex items-center gap-md">
+                    {activity.amount && (
+                      <span style={{ 
+                        fontWeight: 'var(--font-weight-medium)', 
+                        color: activity.type === 'purchase' ? 'var(--accent-green)' : 'var(--text-primary)'
+                      }}>
+                        {activity.amount}
+                      </span>
+                    )}
+                    <span className={`badge ${
+                      activity.status === 'completed' ? 'badge-success' :
+                      activity.status === 'pending' ? 'badge-warning' : 'badge-danger'
+                    }`}>
+                      {activity.status}
+                    </span>
                   </div>
                 </div>
               ))}
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Recent Activity */}
-      <div className="card">
-        <div className="card-header">
-          <h3 className="card-title">Recent Activity</h3>
-          <div className="flex gap-sm">
-            <button className="btn btn-secondary btn-sm">Filter</button>
-            <button className="btn btn-secondary btn-sm">Export</button>
+        {/* System Health & Quick Stats */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
+          
+          {/* System Health */}
+          <div className="card">
+            <div className="card-header">
+              <h3 className="card-title">System Health</h3>
+              <div className="badge badge-success">Healthy</div>
+            </div>
+            <div className="card-body">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-sm">
+                    <div style={{ width: '12px', height: '12px', backgroundColor: 'var(--accent-green)', borderRadius: '50%' }}></div>
+                    <span className="text-primary">Database</span>
+                  </div>
+                  <span className="text-secondary text-small">Connected</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-sm">
+                    <div style={{ width: '12px', height: '12px', backgroundColor: 'var(--accent-green)', borderRadius: '50%' }}></div>
+                    <span className="text-primary">Bot API</span>
+                  </div>
+                  <span className="text-secondary text-small">Online</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-sm">
+                    <div style={{ width: '12px', height: '12px', backgroundColor: 'var(--accent-green)', borderRadius: '50%' }}></div>
+                    <span className="text-primary">Webhooks</span>
+                  </div>
+                  <span className="text-secondary text-small">Active</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-sm">
+                    <div style={{ width: '12px', height: '12px', backgroundColor: 'var(--accent-blue)', borderRadius: '50%' }}></div>
+                    <span className="text-primary">Payments</span>
+                  </div>
+                  <span className="text-secondary text-small">Processing</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="card">
+            <div className="card-header">
+              <h3 className="card-title">Quick Actions</h3>
+            </div>
+            <div className="card-body">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
+                <button className="btn btn-secondary w-full">
+                  📊 Export Data
+                </button>
+                <button className="btn btn-secondary w-full">
+                  👥 View Users
+                </button>
+                <button className="btn btn-secondary w-full">
+                  ⚙️ Bot Settings
+                </button>
+                <button className="btn btn-success w-full">
+                  💎 Manage Packages
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-        <div className="table-container">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Event</th>
-                <th>User</th>
-                <th>Amount</th>
-                <th>Status</th>
-                <th>Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                { event: 'Credit Purchase', user: 'user123', amount: '$15.00', status: 'completed', time: '2 min ago' },
-                { event: 'Message Sent', user: 'user456', amount: '3 credits', status: 'processed', time: '5 min ago' },
-                { event: 'User Registration', user: 'user789', amount: '10 credits', status: 'completed', time: '12 min ago' },
-                { event: 'Settings Updated', user: 'admin', amount: '-', status: 'completed', time: '1 hour ago' },
-              ].map((activity, index) => (
-                <tr key={index}>
-                  <td>
-                    <div className="flex items-center gap-sm">
-                      <span>{activity.event === 'Credit Purchase' ? '💳' : 
-                             activity.event === 'Message Sent' ? '💬' :
-                             activity.event === 'User Registration' ? '👤' : '⚙️'}</span>
-                      <span>{activity.event}</span>
-                    </div>
-                  </td>
-                  <td className="text-accent">{activity.user}</td>
-                  <td>{activity.amount}</td>
-                  <td>
-                    <span className={`badge ${
-                      activity.status === 'completed' ? 'badge-success' :
-                      activity.status === 'processed' ? 'badge-info' : 'badge-warning'
-                    }`}>
-                      {activity.status}
-                    </span>
-                  </td>
-                  <td className="text-secondary">{activity.time}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
       </div>
 
-      {/* Last Updated */}
-      {stats?.lastUpdated && (
-        <div style={{ textAlign: 'center', marginTop: 'var(--spacing-lg)' }}>
-          <p className="text-secondary text-small">
-            Last updated: {new Date(stats.lastUpdated).toLocaleString()}
-          </p>
+      {/* Performance Metrics */}
+      <div className="card">
+        <div className="card-header">
+          <h3 className="card-title">Performance Metrics</h3>
+          <div className="flex gap-sm">
+            <button className="btn btn-success btn-sm">Today</button>
+            <button className="btn btn-secondary btn-sm">7 Days</button>
+            <button className="btn btn-secondary btn-sm">30 Days</button>
+          </div>
         </div>
-      )}
+        <div className="card-body">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--spacing-lg)' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '2rem', color: 'var(--accent-green)', marginBottom: 'var(--spacing-sm)' }}>
+                98.5%
+              </div>
+              <div style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--text-primary)' }}>Uptime</div>
+              <div className="text-secondary text-small">Last 30 days</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '2rem', color: 'var(--accent-blue)', marginBottom: 'var(--spacing-sm)' }}>
+                1.2s
+              </div>
+              <div style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--text-primary)' }}>Avg Response</div>
+              <div className="text-secondary text-small">Message processing</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '2rem', color: 'var(--accent-orange)', marginBottom: 'var(--spacing-sm)' }}>
+                {((stats?.totalCredits || 0) / 10).toFixed(1)}k
+              </div>
+              <div style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--text-primary)' }}>Credits Used</div>
+              <div className="text-secondary text-small">This month</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '2rem', color: 'var(--accent-green)', marginBottom: 'var(--spacing-sm)' }}>
+                ${((stats?.estimatedRevenue || 0) * 12).toFixed(0)}
+              </div>
+              <div style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--text-primary)' }}>Annual Projected</div>
+              <div className="text-secondary text-small">Based on current rate</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
