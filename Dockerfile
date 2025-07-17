@@ -26,9 +26,10 @@ RUN pip install -r requirements.txt
 # Copy API server
 COPY webapp/api/ ./api/
 
-# Copy test deployment script
+# Copy scripts
 COPY webapp/test_deployment.py ./
 COPY webapp/test_db_connection.py ./
+COPY webapp/init_database.py ./
 
 # Copy built React app from builder stage
 COPY --from=builder /app/dist ./dist
@@ -36,5 +37,5 @@ COPY --from=builder /app/dist ./dist
 # Expose port (Railway will set PORT env var)
 EXPOSE 8000
 
-# Run database connection test first, then start Flask API server
-CMD ["sh", "-c", "python test_db_connection.py && python api/dashboard.py"] 
+# Initialize database and start Flask API server
+CMD ["sh", "-c", "python init_database.py && python api/dashboard.py"] 
